@@ -4,11 +4,11 @@ import sqlite3
 from sqlite3 import Connection
 from pathlib import Path
 
-ROOT_DIRECTORY = Path(__file__, "../..").resolve()
+ROOT_DIRECTORY = Path(__file__, "../../../..").resolve()
 SOURCE_FILE = Path(ROOT_DIRECTORY, "data/source/goa_uniprot_all.gaf.gz").resolve()
-DATABASE_FILE = Path(ROOT_DIRECTORY, "data/database.db").resolve()
+DATABASE_FILE = Path(ROOT_DIRECTORY, "data/records.db").resolve()
 
-BATCH_SIZE=100000
+BATCH_SIZE=20000
 
 INITIALIZE_DATABASE = """
     PRAGMA journal_mode = WAL;
@@ -17,22 +17,19 @@ INITIALIZE_DATABASE = """
 """
 
 CREATE_TABLE = """
-    CREATE TABLE IF NOT EXISTS references (
+    CREATE TABLE IF NOT EXISTS annotations (
         goid INTEGER NOT NULL,
         pmid INTEGER NOT NULL,
         date INTEGER NOT NULL,
         PRIMARY KEY (goid, pmid)
     );
-
-    CREATE INDEX IF NOT EXISTS index_goid ON references (goid);
-    CREATE INDEX IF NOT EXISTS index_pmid ON references (pmid);
 """
 
 INSERT_MANY = """
-    INSERT INTO references (goid, pmid, date)
+    INSERT INTO annotations (goid, pmid, date)
     VALUES (?, ?, ?)
-    ON CONFLICT(goid, pmid) DO UPDATE SET
-        date = MIN(date, excluded.date)
+    ON CONFLICT (goid, pmid) DO UPDATE
+    SET date = MIN(date, excluded.date)
 """
 
 def read(path: Path):
@@ -57,7 +54,7 @@ def read(path: Path):
 
             yield (int(goid[-7:]), int(pmid[5:]), int(date))
 
-def main() -> None:
+def main():
     connection: Connection = sqlite3.connect(DATABASE_FILE)
 
     connection.executescript(INITIALIZE_DATABASE)
