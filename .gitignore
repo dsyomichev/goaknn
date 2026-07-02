@@ -1,4 +1,5 @@
 .DS_Store
 
-doc/ref
-data/raw
+doc/ref/
+
+data/
