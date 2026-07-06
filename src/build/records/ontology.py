@@ -8,7 +8,7 @@ ROOT_DIRECTORY = Path(__file__, "../../../..").resolve()
 SOURCE_FILE = Path(ROOT_DIRECTORY, "data/source/go-basic.json").resolve()
 DATABASE_FILE = Path(ROOT_DIRECTORY, "data/records.db").resolve()
 
-BATCH_SIZE=2000
+BATCH_SIZE = 2000
 
 INITIALIZE_DATABASE = """
     PRAGMA journal_mode = WAL;
@@ -30,28 +30,30 @@ INSERT_MANY = """
     SET label = excluded.label
 """
 
+
 def read(path: Path):
-        with open(path) as file:
-            data = json.load(file)
+    with open(path) as file:
+        data = json.load(file)
 
-            for graph in data.get("graphs"):
-                 for node in graph.get("nodes"):
-                    goid = node.get("id")
+        for graph in data.get("graphs"):
+            for node in graph.get("nodes"):
+                goid = node.get("id")
 
-                    if goid is None:
-                        continue
+                if goid is None:
+                    continue
 
-                    try:
-                        goid = int(goid[-7:])
-                    except:
-                        continue
+                try:
+                    goid = int(goid[-7:])
+                except:
+                    continue
 
-                    label = node.get("lbl")
+                label = node.get("lbl")
 
-                    if label is None:
-                        continue
+                if label is None:
+                    continue
 
-                    yield (goid, label)
+                yield (goid, label)
+
 
 def main():
     connection: Connection = sqlite3.connect(DATABASE_FILE)
@@ -76,6 +78,7 @@ def main():
 
     finally:
         connection.close()
+
 
 if __name__ == "__main__":
     main()

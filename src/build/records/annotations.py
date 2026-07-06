@@ -8,7 +8,7 @@ ROOT_DIRECTORY = Path(__file__, "../../../..").resolve()
 SOURCE_FILE = Path(ROOT_DIRECTORY, "data/source/goa_uniprot_all.gaf.gz").resolve()
 DATABASE_FILE = Path(ROOT_DIRECTORY, "data/records.db").resolve()
 
-BATCH_SIZE=20000
+BATCH_SIZE = 20000
 
 INITIALIZE_DATABASE = """
     PRAGMA journal_mode = WAL;
@@ -32,6 +32,7 @@ INSERT_MANY = """
     SET date = MIN(date, excluded.date)
 """
 
+
 def read(path: Path):
     with gzip.open(path, "rt") as file:
         for line in file:
@@ -53,6 +54,7 @@ def read(path: Path):
             date = values[13]
 
             yield (int(goid[-7:]), int(pmid[5:]), int(date))
+
 
 def main():
     connection: Connection = sqlite3.connect(DATABASE_FILE)
@@ -77,6 +79,7 @@ def main():
 
     finally:
         connection.close()
+
 
 if __name__ == "__main__":
     main()
