@@ -31,7 +31,7 @@ INSERT_MANY = """
 """
 
 
-def read(path: Path):
+def read(path):
     with open(path) as file:
         data = json.load(file)
 
@@ -56,13 +56,13 @@ def read(path: Path):
 
 
 def main():
-    connection: Connection = sqlite3.connect(DATABASE_FILE)
+    connection = sqlite3.connect(DATABASE_FILE)
 
     connection.executescript(INITIALIZE_DATABASE)
     connection.executescript(CREATE_TABLE)
 
     try:
-        batch: list[tuple[int, str]] = []
+        batch = []
 
         for row in read(SOURCE_FILE):
             batch.append(row)

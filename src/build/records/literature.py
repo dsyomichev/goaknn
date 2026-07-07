@@ -52,9 +52,9 @@ SELECT_INCOMPLETE = """
 """
 
 
-def parse(response: Response, batch: list[int]):
+def parse(response, batch):
 
-    result: dict[int, str | None] = {e: None for e in batch}
+    result = {e: None for e in batch}
 
     try:
         root = ElementTree.fromstring(response.content)
@@ -84,7 +84,7 @@ def parse(response: Response, batch: list[int]):
     return result
 
 
-def fetch(batch: list[int]):
+def fetch(batch):
     payload = {"db": "pubmed", "rettype": "abstract", "retmod": "xml"}
 
     if PROJECT_NAME:
@@ -120,13 +120,13 @@ def main():
     connection.executescript(CREATE_TABLE)
 
     try:
-        incomplete: list[int] = [e[0] for e in connection.execute(SELECT_INCOMPLETE).fetchall()]
+        incomplete = [e[0] for e in connection.execute(SELECT_INCOMPLETE).fetchall()]
 
         previous = 0.0
 
         for i in range(0, len(incomplete), BATCH_SIZE):
 
-            batch: list[int] = incomplete[i : i + BATCH_SIZE]
+            batch = incomplete[i : i + BATCH_SIZE]
 
             remaining = REQUEST_INTERVAL - time.monotonic() - previous
             if remaining > 0:

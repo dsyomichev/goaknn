@@ -33,7 +33,7 @@ INSERT_MANY = """
 """
 
 
-def read(path: Path):
+def read(path):
     with gzip.open(path, "rt") as file:
         for line in file:
             if line.startswith("!"):
@@ -57,13 +57,13 @@ def read(path: Path):
 
 
 def main():
-    connection: Connection = sqlite3.connect(DATABASE_FILE)
+    connection = sqlite3.connect(DATABASE_FILE)
 
     connection.executescript(INITIALIZE_DATABASE)
     connection.executescript(CREATE_TABLE)
 
     try:
-        batch: list[tuple[int, int, int]] = []
+        batch = []
 
         for row in read(SOURCE_FILE):
             batch.append(row)
