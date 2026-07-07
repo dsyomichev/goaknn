@@ -1,4 +1,5 @@
 import torch
+import numpy
 
 from pathlib import Path
 from transformers import AutoModel, AutoTokenizer
@@ -20,4 +21,4 @@ def embed(input):
 
     vectors = output.last_hidden_state.squeeze(0)
 
-    return {tuple(vector.tolist()) for vector in vectors}
+    return vectors.cpu().numpy()
