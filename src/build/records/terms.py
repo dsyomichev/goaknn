@@ -94,10 +94,10 @@ def download(source, destination):
         raise
 
 
-def build(connection, update=False):
+def main(connection=None, update=False):
     close = False if connection is None else True
 
-    if not SOURCE_FILE.exists() or update == True:
+    if not SOURCE_FILE.exists() or update:
         download(SOURCE_URL, SOURCE_FILE)
 
     if connection is None:
@@ -135,4 +135,4 @@ def build(connection, update=False):
 
 
 if __name__ == "__main__":
-    build(None, update=True)
+    main(None, True)
