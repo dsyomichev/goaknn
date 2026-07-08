@@ -17,14 +17,14 @@ INITIALIZE_DATABASE = """
 """
 
 CREATE_TABLE = """
-    CREATE TABLE IF NOT EXISTS ontology (
+    CREATE TABLE IF NOT EXISTS terms (
         goid INTEGER PRIMARY KEY,
         label TEXT NOT NULL
     );
 """
 
 INSERT_MANY = """
-    INSERT INTO ontology (goid, label)
+    INSERT INTO terms (goid, label)
     VALUES (?, ?)
     ON CONFLICT (goid) DO UPDATE
     SET label = excluded.label

@@ -10,7 +10,6 @@ from xml.etree import ElementTree
 # Script Configuration
 
 ROOT_DIRECTORY = Path(__file__, "../../../..").resolve()
-SOURCE_DIRECTORY = Path(ROOT_DIRECTORY, "data/cache/literature")
 DATABASE_FILE = Path(ROOT_DIRECTORY, "data/records.db").resolve()
 
 PROJECT_NAME = os.environ.get("NCBI_PROJECT_NAME")
@@ -32,22 +31,22 @@ INITIALIZE_DATABASE = """
 """
 
 CREATE_TABLE = """
-    CREATE TABLE IF NOT EXISTS literature (
+    CREATE TABLE IF NOT EXISTS documents (
         pmid INTEGER PRIMARY KEY,
-        abstract TEXT
+        body TEXT
     );
 """
 
 INSERT_MANY = """
-    INSERT INTO literature (pmid, abstract)
+    INSERT INTO documents (pmid, body)
     VALUES (?, ?)
     ON CONFLICT (pmid) DO UPDATE
-    SET abstract = excluded.abstract
+    SET body = excluded.body
 """
 
 SELECT_INCOMPLETE = """
-    SELECT DISTINCT pmid FROM annotations
-    WHERE pmid NOT IN (SELECT pmid FROM literature)
+    SELECT DISTINCT pmid FROM documents
+    WHERE pmid NOT IN (SELECT pmid FROM documents)
     ORDER BY pmid
 """
 
