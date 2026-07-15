@@ -51,7 +51,7 @@ DELETE_MANY = """
 
 # Regex Patterns
 
-EXTRACT_GOID = r"^http:\/\/purl\.obolibrary\.org\/obo\/GO_(\d{7})$"
+EXTRACT_GOID = r"http:\/\/purl\.obolibrary\.org\/obo\/GO_(\d{7})"
 
 
 def read(path):
@@ -135,4 +135,4 @@ def main(connection=None, update=False):
 
 
 if __name__ == "__main__":
-    main(None, True)
+    main(None, False)

@@ -53,6 +53,10 @@ DELETE_MANY = """
 
 # Regex Patterns
 
+EXTRACT_GOID = r"GO:(\d{7})"
+
+EXTRACT_PMID = r"PMID:(\d{8})"
+
 
 def checksum(path):
     digest = hashlib.md5()
@@ -97,19 +101,23 @@ def read(path):
 
             values = line.rstrip().split("\t")
 
-            goid = values[4]
+            result = re.search(EXTRACT_GOID, values[4])
 
-            if not "GO:" in goid:
+            if result is None or result.group(1) is None:
                 continue
 
-            pmid = values[5]
+            goid = int(result.group(1))
 
-            if not pmid.startswith("PMID:"):
+            result = re.search(EXTRACT_PMID, values[5])
+
+            if result is None or result.group(1) is None:
                 continue
+
+            pmid = int(result.group(1))
 
             date = values[13]
 
-            yield (int(goid[-7:]), int(pmid[5:]), int(date))
+            yield (goid, pmid, date)
 
 
 def main(connection=None, update=False):
@@ -142,9 +150,11 @@ def main(connection=None, update=False):
 
         if len(batch) > 0:
             connection.executemany(INSERT_MANY, batch)
+            pass
 
         if len(stale) > 0:
             connection.executemany(DELETE_MANY, stale)
+            pass
 
         connection.commit()
 
@@ -154,4 +164,4 @@ def main(connection=None, update=False):
 
 
 if __name__ == "__main__":
-    main(None, True)
+    main(None, False)
