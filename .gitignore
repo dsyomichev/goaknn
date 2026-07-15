@@ -1,7 +1,13 @@
+# Environement
 .env
+.venv
+
+# System
 .DS_Store
+
+# Editor
 .vscode
 
-data/
-
+# Cache
+**/data/
 **/__pycache__/
