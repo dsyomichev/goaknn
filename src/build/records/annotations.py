@@ -127,7 +127,7 @@ def main(connection=None, update=True, cache=False):
         if not validate(SOURCE_URL, SOURCE_FILE):
             download(SOURCE_URL, SOURCE_FILE)
 
-            if cache == False:
+            if not cache:
                 SOURCE_FILE.unlink()
 
     if connection is None:
@@ -167,4 +167,4 @@ def main(connection=None, update=True, cache=False):
 
 
 if __name__ == "__main__":
-    main(None, True, True)
+    main(None, False, True)

@@ -4,7 +4,6 @@ import time
 import requests
 
 from pathlib import Path
-from requests import Response
 from xml.etree import ElementTree
 
 # Script Configuration
@@ -17,6 +16,8 @@ PROJECT_EMAIL = os.environ.get("NCBI_PROJECT_EMAIL")
 
 API_ENDPOINT = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 API_KEY = os.environ.get("NCBI_API_KEY")
+
+SOURCE_DIRECTORY = Path(ROOT_DIRECTORY, "data/cache/documents").resolve()
 
 BATCH_SIZE = 200
 REQUEST_INTERVAL = 1 / 10 if API_KEY else 1 / 3
@@ -45,10 +46,56 @@ INSERT_MANY = """
 """
 
 SELECT_INCOMPLETE = """
-    SELECT DISTINCT pmid FROM documents
+    SELECT DISTINCT pmid FROM annotations
     WHERE pmid NOT IN (SELECT pmid FROM documents)
     ORDER BY pmid
 """
+
+SELECT_DISTINCT = """
+    SELECT DISTINCT pmid FROM documents
+"""
+
+
+def read(path):
+    root = ElementTree.parse(path).getroot()
+    element = root.find("./MedlineCitation")
+
+    if element is None:
+        return None
+
+    return extract(element)
+
+
+def write(response):
+    root = ElementTree.fromstring(response.content)
+
+    SOURCE_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
+    for element in root.findall("./PubmedArticle"):
+        child = element.find("./MedlineCitation/PMID")
+
+        if child is None or not child.text:
+            continue
+
+        try:
+            pmid = int(child.text)
+        except:
+            continue
+
+        path = Path(SOURCE_DIRECTORY, f"{pmid}.xml")
+
+        ElementTree.ElementTree(element).write(path, encoding="utf-8", xml_declaration=True)
+
+
+def extract(element):
+    child = element.find(".//Abstract")
+
+    if child is None:
+        return None
+
+    parts = [e.text for e in child.findall("AbstractText") if e.text is not None]
+
+    return "\n\n".join(parts)
 
 
 def parse(response, batch):
@@ -60,30 +107,23 @@ def parse(response, batch):
     except:
         return result
 
-    for citation in root.findall("./PubmedArticle/MedlineCitation"):
-        pmid = citation.find("./PMID")
+    for element in root.findall("./PubmedArticle/MedlineCitation"):
+        child = element.find("./PMID")
 
-        if pmid is None or not pmid.text:
+        if child is None or not child.text:
             continue
 
         try:
-            pmid = int(pmid.text)
+            pmid = int(child.text)
         except:
             continue
 
-        abstract = citation.find(".//Abstract")
-
-        if abstract is None:
-            continue
-
-        sections = [e.text for e in abstract.findall("AbstractText") if e.text is not None]
-
-        result[pmid] = "\n\n".join(sections)
+        result[pmid] = extract(element)
 
     return result
 
 
-def fetch(batch):
+def fetch(batch, cache=False):
     payload = {"db": "pubmed", "rettype": "abstract", "retmod": "xml"}
 
     if PROJECT_NAME:
@@ -102,6 +142,9 @@ def fetch(batch):
             response = requests.post(API_ENDPOINT, payload)
             response.raise_for_status()
 
+            if cache:
+                write(response)
+
             return parse(response, batch)
 
         except:
@@ -112,14 +155,20 @@ def fetch(batch):
             raise
 
 
-def main():
-    connection = sqlite3.connect(DATABASE_FILE)
+def main(connection=None, update=True, cache=False):
+    close = False if connection is None else True
 
-    connection.executescript(INITIALIZE_DATABASE)
-    connection.executescript(CREATE_TABLE)
+    if connection is None:
+        connection = sqlite3.connect(DATABASE_FILE)
+
+        connection.executescript(INITIALIZE_DATABASE)
+        connection.executescript(CREATE_TABLE)
 
     try:
-        incomplete = [e[0] for e in connection.execute(SELECT_INCOMPLETE).fetchall()]
+        incomplete = set([int(e[0]) for e in connection.execute(SELECT_INCOMPLETE).fetchall()])
+
+        if update:
+            incomplete = incomplete | set([int(e[0]) for e in connection.execute(SELECT_DISTINCT).fetchall()])
 
         previous = 0.0
 
@@ -127,26 +176,41 @@ def main():
 
             batch = incomplete[i : i + BATCH_SIZE]
 
-            remaining = REQUEST_INTERVAL - time.monotonic() - previous
-            if remaining > 0:
-                time.sleep(remaining)
+            result = {}
+            missing = []
 
-            previous = time.monotonic()
+            for pmid in batch:
+                if Path(SOURCE_DIRECTORY, f"{pmid}.xml").exists():
+                    result[pmid] = read(Path(SOURCE_DIRECTORY, f"{pmid}.xml"))
+                else:
+                    missing.append(pmid)
 
-            try:
-                result = fetch(batch)
-            except:
-                continue
+            if missing:
+                remaining = REQUEST_INTERVAL - time.monotonic() - previous
+                if remaining > 0:
+                    time.sleep(remaining)
 
-            if result is None:
+                previous = time.monotonic()
+
+                try:
+                    fetched = fetch(missing, cache)
+                except:
+                    fetched = None
+
+                if fetched is not None:
+                    result.update(fetched)
+
+            if not result:
                 continue
 
             connection.executemany(INSERT_MANY, result.items())
 
             connection.commit()
+
     finally:
-        connection.close()
+        if close:
+            connection.close()
 
 
 if __name__ == "__main__":
-    main()
+    main(None, True, True)
