@@ -120,12 +120,15 @@ def read(path):
             yield (goid, pmid, date)
 
 
-def main(connection=None, update=False):
+def main(connection=None, update=True, cache=False):
     close = False if connection is None else True
 
     if not SOURCE_FILE.exists() or update:
         if not validate(SOURCE_URL, SOURCE_FILE):
             download(SOURCE_URL, SOURCE_FILE)
+
+            if cache == False:
+                SOURCE_FILE.unlink()
 
     if connection is None:
         connection = sqlite3.connect(DATABASE_FILE)
@@ -164,4 +167,4 @@ def main(connection=None, update=False):
 
 
 if __name__ == "__main__":
-    main(None, False)
+    main(None, True, True)
