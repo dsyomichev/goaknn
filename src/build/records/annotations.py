@@ -39,7 +39,8 @@ INSERT_MANY = """
     INSERT INTO annotations (goid, pmid, date)
     VALUES (?, ?, ?)
     ON CONFLICT (goid, pmid) DO UPDATE
-    SET date = MIN(date, excluded.date)
+    SET
+        date = MIN(date, excluded.date)
 """
 
 SELECT_DISTINCT = """

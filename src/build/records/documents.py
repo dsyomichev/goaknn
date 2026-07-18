@@ -42,7 +42,8 @@ INSERT_MANY = """
     INSERT INTO documents (pmid, body)
     VALUES (?, ?)
     ON CONFLICT (pmid) DO UPDATE
-    SET body = excluded.body
+    SET
+        body = excluded.body
 """
 
 SELECT_INCOMPLETE = """
@@ -51,8 +52,19 @@ SELECT_INCOMPLETE = """
     ORDER BY pmid
 """
 
+SELECT_STALE = """
+    SELECT DISTINCT pmid FROM documents
+    WHERE pmid NOT IN (SELECT pmid from annotations)
+    ORDER BY pmid
+"""
+
 SELECT_DISTINCT = """
     SELECT DISTINCT pmid FROM documents
+"""
+
+DELETE_MANY = """
+    DELETE FROM documents
+    WHERE pmid = ?
 """
 
 
@@ -79,6 +91,7 @@ def write(response):
 
         try:
             pmid = int(child.text)
+
         except:
             continue
 
@@ -104,6 +117,7 @@ def parse(response, batch):
 
     try:
         root = ElementTree.fromstring(response.content)
+
     except:
         return result
 
@@ -150,6 +164,7 @@ def fetch(batch, cache=False):
         except:
             if i < MAX_RETRIES:
                 time.sleep(REQUEST_INTERVAL)
+
                 continue
 
             raise
@@ -168,6 +183,9 @@ def main(connection=None, update=True, cache=False):
         incomplete = set([int(e[0]) for e in connection.execute(SELECT_INCOMPLETE).fetchall()])
 
         if update:
+            stale = set([int(e[0]) for e in connection.execute(SELECT_STALE).fetchall()])
+            connection.executemany(DELETE_MANY, stale)
+
             incomplete = incomplete | set([int(e[0]) for e in connection.execute(SELECT_DISTINCT).fetchall()])
 
         previous = 0.0
@@ -182,6 +200,7 @@ def main(connection=None, update=True, cache=False):
             for pmid in batch:
                 if Path(SOURCE_DIRECTORY, f"{pmid}.xml").exists():
                     result[pmid] = read(Path(SOURCE_DIRECTORY, f"{pmid}.xml"))
+
                 else:
                     missing.append(pmid)
 
@@ -194,6 +213,7 @@ def main(connection=None, update=True, cache=False):
 
                 try:
                     fetched = fetch(missing, cache)
+
                 except:
                     fetched = None
 
