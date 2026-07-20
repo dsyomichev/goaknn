@@ -94,7 +94,7 @@ def download(source, destination):
         raise
 
 
-def main(connection=None, update=True, cache=False):
+def main(connection=None, update=False, cache=False):
     close = False if connection is None else True
 
     if not SOURCE_FILE.exists() or update:
