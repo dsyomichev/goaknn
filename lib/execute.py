@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT_DIRECTORY = Path(__file__, "../..").resolve()
 
-DATABASE_FILE = Path(ROOT_DIRECTORY, "data/records.db").resolve()
+DATABASE_FILE = Path(ROOT_DIRECTORY, "data/base.db").resolve()
 
 INITIALIZE_DATABASE = """
     PRAGMA journal_mode = WAL;
