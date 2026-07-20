@@ -78,6 +78,7 @@ def read(path):
 
 def download(source, destination):
     temporary = destination.with_suffix(".tmp")
+    temporary.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         with requests.get(source, stream=True) as response:

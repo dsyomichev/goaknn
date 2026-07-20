@@ -59,6 +59,9 @@ EXTRACT_PMID = r"PMID:(\d+)"
 
 
 def checksum(path):
+    if not Path(path).exists():
+        return None
+
     digest = hashlib.md5()
 
     with open(path, "rb") as file:
@@ -77,6 +80,7 @@ def validate(remote, local):
 
 def download(source, destination):
     temporary = destination.with_suffix(".tmp")
+    temporary.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         with requests.get(source, stream=True) as response:
