@@ -4,9 +4,7 @@ import numpy
 from pathlib import Path
 from transformers import AutoModel, AutoTokenizer
 
-ROOT_DIRECTORY = Path(__file__, "../..").resolve()
 MODEL_NAME = "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"
-
 DEVICE_TYPE = "cuda" if torch.cuda.is_available() else "cpu"
 
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)

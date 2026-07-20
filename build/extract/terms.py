@@ -1,29 +1,29 @@
 import json
 import re
-import sqlite3
 import requests
+import sys
 
 from pathlib import Path
 
 # Script Configuration
 
-ROOT_DIRECTORY = Path(__file__, "../../../..").resolve()
-CACHE_DIRECTORY = Path(ROOT_DIRECTORY, "data/cache").resolve()
-DATABASE_FILE = Path(ROOT_DIRECTORY, "data/records.db").resolve()
+ROOT_DIRECTORY = Path(__file__, "../../..").resolve()
+
+CACHE_DIRECTORY = ROOT_DIRECTORY.joinpath("data/cache").resolve()
 
 SOURCE_URL = "https://current.geneontology.org/ontology/go-basic.json"
-SOURCE_FILE = Path(ROOT_DIRECTORY, "data/cache/go-basic.json").resolve()
+SOURCE_FILE = ROOT_DIRECTORY.joinpath("data/cache/go-basic.json").resolve()
 
 BATCH_SIZE = 2000
 CHUNK_SIZE = 65536
 
-# SQL Queries
+# Import Local Modules
 
-INITIALIZE_DATABASE = """
-    PRAGMA journal_mode = WAL;
-    PRAGMA synchronous = NORMAL;
-    PRAGMA cache_size = -65536;
-"""
+sys.path.insert(0, str(ROOT_DIRECTORY))
+
+from lib.execute import execute
+
+# SQL Queries
 
 CREATE_TABLE = """
     CREATE TABLE IF NOT EXISTS terms (
@@ -94,8 +94,7 @@ def download(source, destination):
         raise
 
 
-def main(connection=None, update=False, cache=False):
-    close = False if connection is None else True
+def extract(connection, update=False, cache=True):
 
     if not SOURCE_FILE.exists() or update:
         download(SOURCE_URL, SOURCE_FILE)
@@ -103,39 +102,32 @@ def main(connection=None, update=False, cache=False):
         if not cache:
             SOURCE_FILE.unlink()
 
-    if connection is None:
-        connection = sqlite3.connect(DATABASE_FILE)
+    connection.executescript(CREATE_TABLE)
 
-        connection.executescript(INITIALIZE_DATABASE)
-        connection.executescript(CREATE_TABLE)
+    stale = set([int(e[0]) for e in connection.execute(SELECT_DISTINCT).fetchall()])
 
-    try:
-        stale = set([int(e[0]) for e in connection.execute(SELECT_DISTINCT).fetchall()])
+    batch = []
 
-        batch = []
+    for goid, label in read(SOURCE_FILE):
+        batch.append((goid, label))
 
-        for goid, label in read(SOURCE_FILE):
-            batch.append((goid, label))
+        if goid in stale:
+            stale.remove(goid)
 
-            if goid in stale:
-                stale.remove(goid)
-
-            if len(batch) >= BATCH_SIZE:
-                connection.executemany(INSERT_MANY, batch)
-                batch.clear()
-
-        if len(batch) > 0:
+        if len(batch) >= BATCH_SIZE:
             connection.executemany(INSERT_MANY, batch)
 
-        if len(stale) > 0:
-            connection.executemany(DELETE_MANY, [(e,) for e in stale])
+            connection.commit()
+            batch.clear()
 
-        connection.commit()
+    if len(batch) > 0:
+        connection.executemany(INSERT_MANY, batch)
 
-    finally:
-        if close:
-            connection.close()
+    if len(stale) > 0:
+        connection.executemany(DELETE_MANY, [(e,) for e in stale])
+
+    connection.commit()
 
 
 if __name__ == "__main__":
-    main(None, False, True)
+    execute(extract)

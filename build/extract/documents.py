@@ -1,15 +1,14 @@
-import sqlite3
 import os
-import time
 import requests
+import sys
+import time
 
 from pathlib import Path
 from xml.etree import ElementTree
 
 # Script Configuration
 
-ROOT_DIRECTORY = Path(__file__, "../../../..").resolve()
-DATABASE_FILE = Path(ROOT_DIRECTORY, "data/records.db").resolve()
+ROOT_DIRECTORY = Path(__file__, "../../..").resolve()
 
 PROJECT_NAME = os.environ.get("NCBI_PROJECT_NAME")
 PROJECT_EMAIL = os.environ.get("NCBI_PROJECT_EMAIL")
@@ -23,13 +22,13 @@ BATCH_SIZE = 200
 REQUEST_INTERVAL = 1 / 10 if API_KEY else 1 / 3
 MAX_RETRIES = 3
 
-# Database Queries
+# Import Local Modules
 
-INITIALIZE_DATABASE = """
-    PRAGMA journal_mode = WAL;
-    PRAGMA synchronous  = NORMAL;
-    PRAGMA cache_size   = -65536;
-"""
+sys.path.insert(0, str(ROOT_DIRECTORY))
+
+from lib.execute import execute
+
+# Database Queries
 
 CREATE_TABLE = """
     CREATE TABLE IF NOT EXISTS documents (
@@ -75,7 +74,7 @@ def read(path):
     if element is None:
         return None
 
-    return extract(element)
+    return extract_abstract(element)
 
 
 def write(response):
@@ -100,7 +99,7 @@ def write(response):
         ElementTree.ElementTree(element).write(path, encoding="utf-8", xml_declaration=True)
 
 
-def extract(element):
+def extract_abstract(element):
     child = element.find(".//Abstract")
 
     if child is None:
@@ -132,7 +131,7 @@ def parse(response, batch):
         except:
             continue
 
-        result[pmid] = extract(element)
+        result[pmid] = extract_abstract(element)
 
     return result
 
@@ -162,7 +161,7 @@ def fetch(batch, cache=False):
             return parse(response, batch)
 
         except:
-            if i < MAX_RETRIES:
+            if i < MAX_RETRIES - 1:
                 time.sleep(REQUEST_INTERVAL)
 
                 continue
@@ -170,67 +169,59 @@ def fetch(batch, cache=False):
             raise
 
 
-def main(connection=None, update=True, cache=False):
-    close = False if connection is None else True
+def extract(connection, update=False, cache=True):
 
-    if connection is None:
-        connection = sqlite3.connect(DATABASE_FILE)
+    connection.executescript(CREATE_TABLE)
 
-        connection.executescript(INITIALIZE_DATABASE)
-        connection.executescript(CREATE_TABLE)
+    incomplete = set([int(e[0]) for e in connection.execute(SELECT_INCOMPLETE).fetchall()])
 
-    try:
-        incomplete = set([int(e[0]) for e in connection.execute(SELECT_INCOMPLETE).fetchall()])
+    if update:
+        stale = set([int(e[0]) for e in connection.execute(SELECT_STALE).fetchall()])
+        connection.executemany(DELETE_MANY, stale)
 
-        if update:
-            stale = set([int(e[0]) for e in connection.execute(SELECT_STALE).fetchall()])
-            connection.executemany(DELETE_MANY, stale)
+        incomplete = incomplete | set([int(e[0]) for e in connection.execute(SELECT_DISTINCT).fetchall()])
 
-            incomplete = incomplete | set([int(e[0]) for e in connection.execute(SELECT_DISTINCT).fetchall()])
+    incomplete = list(incomplete)
 
-        previous = 0.0
+    previous = 0.0
 
-        for i in range(0, len(incomplete), BATCH_SIZE):
+    for i in range(0, len(incomplete), BATCH_SIZE):
 
-            batch = incomplete[i : i + BATCH_SIZE]
+        batch = incomplete[i : i + BATCH_SIZE]
 
-            result = {}
-            missing = []
+        result = {}
+        missing = []
 
-            for pmid in batch:
-                if Path(SOURCE_DIRECTORY, f"{pmid}.xml").exists():
-                    result[pmid] = read(Path(SOURCE_DIRECTORY, f"{pmid}.xml"))
+        for pmid in batch:
+            if Path(SOURCE_DIRECTORY, f"{pmid}.xml").exists():
+                result[pmid] = read(Path(SOURCE_DIRECTORY, f"{pmid}.xml"))
 
-                else:
-                    missing.append(pmid)
+            else:
+                missing.append(pmid)
 
-            if missing:
-                remaining = REQUEST_INTERVAL - time.monotonic() - previous
-                if remaining > 0:
-                    time.sleep(remaining)
+        if missing:
+            remaining = REQUEST_INTERVAL - time.monotonic() - previous
+            if remaining > 0:
+                time.sleep(remaining)
 
-                previous = time.monotonic()
+            previous = time.monotonic()
 
-                try:
-                    fetched = fetch(missing, cache)
+            try:
+                fetched = fetch(missing, cache)
 
-                except:
-                    fetched = None
+            except:
+                fetched = None
 
-                if fetched is not None:
-                    result.update(fetched)
+            if fetched is not None:
+                result.update(fetched)
 
-            if not result:
-                continue
+        if not result:
+            continue
 
-            connection.executemany(INSERT_MANY, result.items())
+        connection.executemany(INSERT_MANY, result.items())
 
-            connection.commit()
-
-    finally:
-        if close:
-            connection.close()
+        connection.commit()
 
 
 if __name__ == "__main__":
-    main(None, True, True)
+    execute(extract)
