@@ -1,7 +1,5 @@
 import torch
-import numpy
 
-from pathlib import Path
 from transformers import AutoModel, AutoTokenizer
 
 MODEL_NAME = "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"

@@ -9,10 +9,10 @@ from pathlib import Path
 # Script Configuration
 
 ROOT_DIRECTORY = Path(__file__, "../../..").resolve()
-CACHE_DIRECTORY = Path(ROOT_DIRECTORY, "data/cache").resolve()
+CACHE_DIRECTORY = ROOT_DIRECTORY.joinpath("data/cache").resolve()
 
 SOURCE_URL = "https://ftp.ebi.ac.uk/pub/databases/GO/goa/UNIPROT/goa_uniprot_all.gaf.gz"
-SOURCE_FILE = Path(ROOT_DIRECTORY, "data/cache/goa_uniprot_all.gaf.gz").resolve()
+SOURCE_FILE = ROOT_DIRECTORY.joinpath("data/cache/goa_uniprot_all.gaf.gz").resolve()
 
 BATCH_SIZE = 20000
 CHUNK_SIZE = 65536

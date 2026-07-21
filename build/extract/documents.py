@@ -16,7 +16,7 @@ PROJECT_EMAIL = os.environ.get("NCBI_PROJECT_EMAIL")
 API_ENDPOINT = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 API_KEY = os.environ.get("NCBI_API_KEY")
 
-SOURCE_DIRECTORY = Path(ROOT_DIRECTORY, "data/cache/documents").resolve()
+SOURCE_DIRECTORY = ROOT_DIRECTORY.joinpath("data/cache/documents").resolve()
 
 BATCH_SIZE = 200
 REQUEST_INTERVAL = 1 / 10 if API_KEY else 1 / 3
