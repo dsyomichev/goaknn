@@ -8,6 +8,6 @@
 # Editor
 .vscode
 
-# Cache
+# Cache and Data Store
 **/data/
 **/__pycache__/

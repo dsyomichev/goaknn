@@ -13,16 +13,16 @@ BATCH_SIZE = 20000
 sys.path.insert(0, str(ROOT_DIRECTORY))
 
 from lib.execute import execute
-from lib.preprocess import preprocess
+from lib.preprocess import preprocess, index
 
 # SQL Queries
 
 CREATE_TABLE = """
     CREATE TABLE IF NOT EXISTS frequencies (
-        term TEXT NOT NULL,
+        token TEXT NOT NULL,
         pmid INTEGER NOT NULL,
         frequency INTEGER NOT NULL,
-        PRIMARY KEY (term, pmid)
+        PRIMARY KEY (token, pmid)
     );
 """
 
@@ -37,21 +37,11 @@ DELETE_STALE = """
 """
 
 INSERT_MANY = """
-    INSERT INTO frequencies (term, pmid, frequency)
+    INSERT INTO frequencies (token, pmid, frequency)
     VALUES (?, ?, ?)
-    ON CONFLICT (term, pmid) DO UPDATE SET
+    ON CONFLICT (token, pmid) DO UPDATE SET
         frequency = excluded.frequency
 """
-
-
-def index(pmid, body):
-    tokens = preprocess(body)
-
-    frequencies = {}
-    for token in tokens:
-        frequencies[token] = frequencies.get(token, 0) + 1
-
-    return [(term, pmid, frequency) for term, frequency in frequencies.items()]
 
 
 def extract(connection):
@@ -64,7 +54,8 @@ def extract(connection):
 
     for pmid, body in incomplete:
 
-        aggregate.extend(index(pmid, body))
+        tokens = preprocess(body)
+        aggregate.extend([(token, pmid, frequency) for token, frequency in index(tokens)])
 
         if len(aggregate) >= BATCH_SIZE:
             connection.executemany(INSERT_MANY, aggregate)

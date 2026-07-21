@@ -20,3 +20,12 @@ def preprocess(input):
     tokens = [stemmer.stem(token) for token in tokens]
 
     return tokens
+
+
+def index(tokens):
+
+    frequencies = {}
+    for token in tokens:
+        frequencies[token] = frequencies.get(token, 0) + 1
+
+    return frequencies.items()
