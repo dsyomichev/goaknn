@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT_DIRECTORY = Path(__file__, "../..").resolve()
 
 BATCH_SIZE = 20000
+RANDOM_SEED = 0
 
 # Import Local Modules
 
@@ -17,25 +18,25 @@ from lib.execute import execute
 
 # SQL Queries
 
-CREATE_TABLE = """
+CREATE_FOLD_TABLE = """
     CREATE TABLE IF NOT EXISTS folds (
             pmid INTEGER PRIMARY KEY,
             fold INTEGER
         );
 """
 
-SELECT_DISTINCT = """
+SELECT_DISTINCT_DOCUMENTS = """
     SELECT DISTINCT pmid FROM documents
     WHERE body IS NOT NULL
     ORDER BY pmid
 """
 
-DELETE_MANY = """
+DELETE_FOLD_ASSIGNMENT = """
     DELETE FROM folds
     WHERE pmid NOT IN (SELECT pmid from documents)
 """
 
-INSERT_MANY = """
+INSERT_FOLD_ASSIGNMENT = """
     INSERT INTO folds (pmid, fold)
     VALUES (?, ?)
     ON CONFLICT (pmid)
@@ -43,13 +44,21 @@ INSERT_MANY = """
         fold = excluded.fold
 """
 
+SELECT_DISTINCT_FOLD_VOCABULARY = """
+    SELECT DISTINCT token FROM frequencies
+    WHERE pmid IN (
+        SELECT pmid FROM folds
+        WHERE fold = ?
+    )
+"""
 
-def fold(connection, k=1, seed=0):
-    random.seed(seed)
 
-    connection.executescript(CREATE_TABLE)
+def assign(connection, k=1):
+    random.seed(RANDOM_SEED)
 
-    available = [int(e[0]) for e in connection.execute(SELECT_DISTINCT).fetchall()]
+    connection.executescript(CREATE_FOLD_TABLE)
+
+    available = [int(e[0]) for e in connection.execute(SELECT_DISTINCT_DOCUMENTS).fetchall()]
 
     random.shuffle(available)
 
@@ -64,18 +73,18 @@ def fold(connection, k=1, seed=0):
             batch.append((pmid, i))
 
             if len(batch) >= BATCH_SIZE:
-                connection.executemany(INSERT_MANY, batch)
+                connection.executemany(INSERT_FOLD_ASSIGNMENT, batch)
 
                 connection.commit()
                 batch.clear()
 
         if len(batch) > 0:
-            connection.executemany(INSERT_MANY, batch)
+            connection.executemany(INSERT_FOLD_ASSIGNMENT, batch)
 
-        connection.execute(DELETE_MANY)
+        connection.execute(DELETE_FOLD_ASSIGNMENT)
 
         connection.commit()
 
 
-if __name__ == "__main__":
-    execute(fold)
+def vectorize(connection, k=1):
+    pass

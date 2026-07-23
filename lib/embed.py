@@ -9,7 +9,7 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModel.from_pretrained(MODEL_NAME).to(DEVICE_TYPE).eval()
 
 
-def embed(input):
+def vectorize(input):
     if tokenizer is None or model is None:
         return
 

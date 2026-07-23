@@ -17,7 +17,7 @@ from lib.preprocess import tokenize, index
 
 # SQL Queries
 
-CREATE_TABLE = """
+CREATE_FREQUENCIES_TABLE = """
     CREATE TABLE IF NOT EXISTS frequencies (
         token TEXT NOT NULL,
         pmid INTEGER NOT NULL,
@@ -26,17 +26,17 @@ CREATE_TABLE = """
     );
 """
 
-SELECT_AVAILABLE = """
+SELECT_AVAILABLE_DOCUMENTS = """
     SELECT pmid, body FROM documents
     WHERE body IS NOT NULL
 """
 
-DELETE_STALE = """
+DELETE_STALE_FREQUENCIES = """
     DELETE FROM frequencies
     WHERE pmid NOT IN (SELECT DISTINCT pmid FROM documents)
 """
 
-INSERT_MANY = """
+INSERT_FREQUENCY = """
     INSERT INTO frequencies (token, pmid, frequency)
     VALUES (?, ?, ?)
     ON CONFLICT (token, pmid) DO UPDATE SET
@@ -46,9 +46,9 @@ INSERT_MANY = """
 
 def compute(connection):
 
-    connection.executescript(CREATE_TABLE)
+    connection.executescript(CREATE_FREQUENCIES_TABLE)
 
-    available = connection.execute(SELECT_AVAILABLE)
+    available = connection.execute(SELECT_AVAILABLE_DOCUMENTS)
 
     aggregate = []
 
@@ -58,15 +58,15 @@ def compute(connection):
         aggregate.extend([(token, pmid, frequency) for token, frequency in index(tokens)])
 
         if len(aggregate) >= BATCH_SIZE:
-            connection.executemany(INSERT_MANY, aggregate)
+            connection.executemany(INSERT_FREQUENCY, aggregate)
 
             connection.commit()
             aggregate.clear()
 
     if aggregate:
-        connection.executemany(INSERT_MANY, aggregate)
+        connection.executemany(INSERT_FREQUENCY, aggregate)
 
-    connection.execute(DELETE_STALE)
+    connection.execute(DELETE_STALE_FREQUENCIES)
 
     connection.commit()
 

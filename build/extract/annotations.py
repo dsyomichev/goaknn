@@ -25,7 +25,7 @@ from lib.execute import execute
 
 # SQL Queries
 
-CREATE_TABLE = """
+CREATE_ANNOTATIONS_TABLE = """
     CREATE TABLE IF NOT EXISTS annotations (
         goid INTEGER NOT NULL,
         pmid INTEGER NOT NULL,
@@ -34,7 +34,7 @@ CREATE_TABLE = """
     );
 """
 
-INSERT_MANY = """
+INSERT_ANNOTATION = """
     INSERT INTO annotations (goid, pmid, date)
     VALUES (?, ?, ?)
     ON CONFLICT (goid, pmid) DO UPDATE
@@ -42,11 +42,11 @@ INSERT_MANY = """
         date = MIN(date, excluded.date)
 """
 
-SELECT_DISTINCT = """
+SELECT_DISTINCT_ANNOTATIONS = """
     SELECT DISTINCT goid, pmid FROM annotations
 """
 
-DELETE_MANY = """
+DELETE_ANNOTATION = """
     DELETE FROM annotations
     WHERE goid = ? AND pmid = ?
 """
@@ -133,9 +133,9 @@ def extract(connection, update=False, cache=True):
             if not cache:
                 SOURCE_FILE.unlink()
 
-    connection.executescript(CREATE_TABLE)
+    connection.executescript(CREATE_ANNOTATIONS_TABLE)
 
-    stale = set([(int(e[0]), int(e[1])) for e in connection.execute(SELECT_DISTINCT).fetchall()])
+    stale = set([(int(e[0]), int(e[1])) for e in connection.execute(SELECT_DISTINCT_ANNOTATIONS).fetchall()])
 
     batch = []
 
@@ -146,16 +146,16 @@ def extract(connection, update=False, cache=True):
             stale.remove((goid, pmid))
 
         if len(batch) >= BATCH_SIZE:
-            connection.executemany(INSERT_MANY, batch)
+            connection.executemany(INSERT_ANNOTATION, batch)
 
             connection.commit()
             batch.clear()
 
     if len(batch) > 0:
-        connection.executemany(INSERT_MANY, batch)
+        connection.executemany(INSERT_ANNOTATION, batch)
 
     if len(stale) > 0:
-        connection.executemany(DELETE_MANY, stale)
+        connection.executemany(DELETE_ANNOTATION, stale)
 
     connection.commit()
 

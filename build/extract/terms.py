@@ -25,14 +25,14 @@ from lib.execute import execute
 
 # SQL Queries
 
-CREATE_TABLE = """
+CREATE_TERMS_TABLE = """
     CREATE TABLE IF NOT EXISTS terms (
         goid INTEGER PRIMARY KEY,
         label TEXT NOT NULL
     );
 """
 
-INSERT_MANY = """
+INSERT_TERM = """
     INSERT INTO terms (goid, label)
     VALUES (?, ?)
     ON CONFLICT (goid)
@@ -40,11 +40,11 @@ INSERT_MANY = """
         label = EXCLUDED.label
 """
 
-SELECT_DISTINCT = """
+SELECT_DISTINCT_TERMS = """
     SELECT DISTINCT goid FROM terms
 """
 
-DELETE_MANY = """
+DELETE_TERM = """
     DELETE FROM terms
     WHERE goid = ?
 """
@@ -103,9 +103,9 @@ def extract(connection, update=False, cache=True):
         if not cache:
             SOURCE_FILE.unlink()
 
-    connection.executescript(CREATE_TABLE)
+    connection.executescript(CREATE_TERMS_TABLE)
 
-    stale = set([int(e[0]) for e in connection.execute(SELECT_DISTINCT).fetchall()])
+    stale = set([int(e[0]) for e in connection.execute(SELECT_DISTINCT_TERMS).fetchall()])
 
     batch = []
 
@@ -116,16 +116,16 @@ def extract(connection, update=False, cache=True):
             stale.remove(goid)
 
         if len(batch) >= BATCH_SIZE:
-            connection.executemany(INSERT_MANY, batch)
+            connection.executemany(INSERT_TERM, batch)
 
             connection.commit()
             batch.clear()
 
     if len(batch) > 0:
-        connection.executemany(INSERT_MANY, batch)
+        connection.executemany(INSERT_TERM, batch)
 
     if len(stale) > 0:
-        connection.executemany(DELETE_MANY, [(e,) for e in stale])
+        connection.executemany(DELETE_TERM, [(e,) for e in stale])
 
     connection.commit()
 

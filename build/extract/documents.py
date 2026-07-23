@@ -30,14 +30,14 @@ from lib.execute import execute
 
 # Database Queries
 
-CREATE_TABLE = """
+CREATE_DOCUMENT_TABLE = """
     CREATE TABLE IF NOT EXISTS documents (
         pmid INTEGER PRIMARY KEY,
         body TEXT
     );
 """
 
-INSERT_MANY = """
+INSERT_DOCUMENT = """
     INSERT INTO documents (pmid, body)
     VALUES (?, ?)
     ON CONFLICT (pmid) DO UPDATE
@@ -45,23 +45,23 @@ INSERT_MANY = """
         body = excluded.body
 """
 
-SELECT_INCOMPLETE = """
+SELECT_INCOMPLETE_DOCUMENTS = """
     SELECT DISTINCT pmid FROM annotations
     WHERE pmid NOT IN (SELECT pmid FROM documents)
     ORDER BY pmid
 """
 
-SELECT_STALE = """
+SELECT_STALE_DOCUMENTS = """
     SELECT DISTINCT pmid FROM documents
     WHERE pmid NOT IN (SELECT pmid from annotations)
     ORDER BY pmid
 """
 
-SELECT_DISTINCT = """
+SELECT_DISTINCT_DOCUMENTS = """
     SELECT DISTINCT pmid FROM documents
 """
 
-DELETE_MANY = """
+DELETE_DOCUMENT = """
     DELETE FROM documents
     WHERE pmid = ?
 """
@@ -171,15 +171,15 @@ def fetch(batch, cache=False):
 
 def extract(connection, update=False, cache=True):
 
-    connection.executescript(CREATE_TABLE)
+    connection.executescript(CREATE_DOCUMENT_TABLE)
 
-    incomplete = set([int(e[0]) for e in connection.execute(SELECT_INCOMPLETE).fetchall()])
+    incomplete = set([int(e[0]) for e in connection.execute(SELECT_INCOMPLETE_DOCUMENTS).fetchall()])
 
     if update:
-        stale = set([int(e[0]) for e in connection.execute(SELECT_STALE).fetchall()])
-        connection.executemany(DELETE_MANY, stale)
+        stale = set([int(e[0]) for e in connection.execute(SELECT_STALE_DOCUMENTS).fetchall()])
+        connection.executemany(DELETE_DOCUMENT, stale)
 
-        incomplete = incomplete | set([int(e[0]) for e in connection.execute(SELECT_DISTINCT).fetchall()])
+        incomplete = incomplete | set([int(e[0]) for e in connection.execute(SELECT_DISTINCT_DOCUMENTS).fetchall()])
 
     incomplete = list(incomplete)
 
@@ -218,7 +218,7 @@ def extract(connection, update=False, cache=True):
         if not result:
             continue
 
-        connection.executemany(INSERT_MANY, result.items())
+        connection.executemany(INSERT_DOCUMENT, result.items())
 
         connection.commit()
 
