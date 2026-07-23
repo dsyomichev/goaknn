@@ -14,7 +14,7 @@ STOPWORDS = set(stopwords.words("english"))
 stemmer = PorterStemmer()
 
 
-def preprocess(input):
+def tokenize(input):
     tokens = TOKEN_PATTERN.findall(input.lower())
     tokens = [token for token in tokens if token not in STOPWORDS]
     tokens = [stemmer.stem(token) for token in tokens]

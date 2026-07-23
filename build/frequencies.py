@@ -13,7 +13,7 @@ BATCH_SIZE = 20000
 sys.path.insert(0, str(ROOT_DIRECTORY))
 
 from lib.execute import execute
-from lib.preprocess import preprocess, index
+from lib.preprocess import tokenize, index
 
 # SQL Queries
 
@@ -26,7 +26,7 @@ CREATE_TABLE = """
     );
 """
 
-SELECT_INCOMPLETE = """
+SELECT_AVAILABLE = """
     SELECT pmid, body FROM documents
     WHERE body IS NOT NULL
 """
@@ -44,17 +44,17 @@ INSERT_MANY = """
 """
 
 
-def extract(connection):
+def compute(connection):
 
     connection.executescript(CREATE_TABLE)
 
-    incomplete = connection.execute(SELECT_INCOMPLETE)
+    available = connection.execute(SELECT_AVAILABLE)
 
     aggregate = []
 
-    for pmid, body in incomplete:
+    for pmid, body in available:
 
-        tokens = preprocess(body)
+        tokens = tokenize(body)
         aggregate.extend([(token, pmid, frequency) for token, frequency in index(tokens)])
 
         if len(aggregate) >= BATCH_SIZE:
@@ -72,4 +72,4 @@ def extract(connection):
 
 
 if __name__ == "__main__":
-    execute(extract)
+    execute(compute)

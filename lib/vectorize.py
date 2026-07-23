@@ -10,6 +10,9 @@ model = AutoModel.from_pretrained(MODEL_NAME).to(DEVICE_TYPE).eval()
 
 
 def embed(input):
+    if tokenizer is None or model is None:
+        return
+
     tokens = tokenizer(input, return_tensors="pt", truncation=True).to(DEVICE_TYPE)
 
     with torch.no_grad():
