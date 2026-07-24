@@ -9,6 +9,7 @@ if Downloader().status("stopwords") != Downloader.INSTALLED:
     nltk.download("stopwords")
 
 TOKEN_PATTERN = re.compile(r"[a-zA-Z0-9]+")
+NUMERICAL_PATTERN = re.compile(r"[0-9]+")
 STOPWORDS = set(stopwords.words("english"))
 
 stemmer = PorterStemmer()
@@ -16,7 +17,7 @@ stemmer = PorterStemmer()
 
 def tokenize(input):
     tokens = TOKEN_PATTERN.findall(input.lower())
-    tokens = [token for token in tokens if token not in STOPWORDS]
+    tokens = [token for token in tokens if token not in STOPWORDS and not NUMERICAL_PATTERN.match(token)]
     tokens = [stemmer.stem(token) for token in tokens]
 
     return tokens
