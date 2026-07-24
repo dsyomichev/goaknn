@@ -5,6 +5,7 @@ import requests
 import sys
 
 from pathlib import Path
+from sqlite3 import Connection
 
 # Script Configuration
 
@@ -58,8 +59,8 @@ EXTRACT_GOID = r"GO:(\d{7})"
 EXTRACT_PMID = r"PMID:(\d+)"
 
 
-def checksum(path):
-    if not Path(path).exists():
+def checksum(path: Path):
+    if not path.exists():
         return None
 
     digest = hashlib.md5()
@@ -71,14 +72,14 @@ def checksum(path):
     return digest.hexdigest()
 
 
-def validate(remote, local):
+def validate(remote: str, local: Path):
     response = requests.get(remote + ".md5")
     response.raise_for_status()
 
     return response.text.strip().split()[0] == checksum(local)
 
 
-def download(source, destination):
+def download(source: str, destination: Path):
     temporary = destination.with_suffix(".tmp")
     temporary.parent.mkdir(parents=True, exist_ok=True)
 
@@ -97,7 +98,7 @@ def download(source, destination):
         raise
 
 
-def read(path):
+def read(path: Path):
     with gzip.open(path, "rt") as file:
         for line in file:
             if line.startswith("!"):
@@ -124,7 +125,7 @@ def read(path):
             yield (goid, pmid, date)
 
 
-def extract(connection, update=False, cache=True):
+def extract(connection: Connection, update: bool = False, cache: bool = True):
 
     if not SOURCE_FILE.exists() or update:
         if not validate(SOURCE_URL, SOURCE_FILE):
@@ -135,9 +136,9 @@ def extract(connection, update=False, cache=True):
 
     connection.executescript(CREATE_ANNOTATIONS_TABLE)
 
-    stale = set([(int(e[0]), int(e[1])) for e in connection.execute(SELECT_DISTINCT_ANNOTATIONS).fetchall()])
+    stale = [(e[0], e[1]) for e in connection.execute(SELECT_DISTINCT_ANNOTATIONS).fetchall()]
 
-    batch = []
+    batch: list[tuple[int, int, str]] = []
 
     for goid, pmid, date in read(SOURCE_FILE):
         batch.append((goid, pmid, date))

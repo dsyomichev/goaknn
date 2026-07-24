@@ -15,7 +15,7 @@ STOPWORDS = set(stopwords.words("english"))
 stemmer = PorterStemmer()
 
 
-def tokenize(input):
+def tokenize(input: str):
     tokens = TOKEN_PATTERN.findall(input.lower())
     tokens = [token for token in tokens if token not in STOPWORDS and not NUMERICAL_PATTERN.match(token)]
     tokens = [stemmer.stem(token) for token in tokens]
@@ -23,9 +23,9 @@ def tokenize(input):
     return tokens
 
 
-def index(tokens):
+def index(tokens: list[str]):
 
-    frequencies = {}
+    frequencies: dict[str, int] = {}
     for token in tokens:
         frequencies[token] = frequencies.get(token, 0) + 1
 

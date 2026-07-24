@@ -5,6 +5,8 @@ import time
 
 from pathlib import Path
 from xml.etree import ElementTree
+from sqlite3 import Connection
+from requests import Response
 
 # Script Configuration
 
@@ -67,17 +69,28 @@ DELETE_DOCUMENT = """
 """
 
 
-def read(path):
+def process(element: ElementTree.Element):
+    child = element.find(".//Abstract")
+
+    if child is None:
+        return None
+
+    parts = [e.text for e in child.findall("AbstractText") if e.text is not None]
+
+    return "\n\n".join(parts)
+
+
+def read(path: Path):
     root = ElementTree.parse(path).getroot()
     element = root.find("./MedlineCitation")
 
     if element is None:
         return None
 
-    return extract_abstract(element)
+    return process(element)
 
 
-def write(response):
+def write(response: Response):
     root = ElementTree.fromstring(response.content)
 
     SOURCE_DIRECTORY.mkdir(parents=True, exist_ok=True)
@@ -99,20 +112,9 @@ def write(response):
         ElementTree.ElementTree(element).write(path, encoding="utf-8", xml_declaration=True)
 
 
-def extract_abstract(element):
-    child = element.find(".//Abstract")
+def parse(response: Response, batch: list[int]):
 
-    if child is None:
-        return None
-
-    parts = [e.text for e in child.findall("AbstractText") if e.text is not None]
-
-    return "\n\n".join(parts)
-
-
-def parse(response, batch):
-
-    result = {e: None for e in batch}
+    result: dict[int, str | None] = {e: None for e in batch}
 
     try:
         root = ElementTree.fromstring(response.content)
@@ -131,12 +133,12 @@ def parse(response, batch):
         except:
             continue
 
-        result[pmid] = extract_abstract(element)
+        result[pmid] = process(element)
 
     return result
 
 
-def fetch(batch, cache=False):
+def fetch(batch: list[int], cache: bool = False):
     payload = {"db": "pubmed", "rettype": "abstract", "retmod": "xml"}
 
     if PROJECT_NAME:
@@ -169,17 +171,17 @@ def fetch(batch, cache=False):
             raise
 
 
-def extract(connection, update=False, cache=True):
+def extract(connection: Connection, update: bool = False, cache: bool = True):
 
     connection.executescript(CREATE_DOCUMENT_TABLE)
 
-    incomplete = set([int(e[0]) for e in connection.execute(SELECT_INCOMPLETE_DOCUMENTS).fetchall()])
+    incomplete = set([e[0] for e in connection.execute(SELECT_INCOMPLETE_DOCUMENTS).fetchall()])
 
     if update:
-        stale = set([int(e[0]) for e in connection.execute(SELECT_STALE_DOCUMENTS).fetchall()])
+        stale = [e[0] for e in connection.execute(SELECT_STALE_DOCUMENTS).fetchall()]
         connection.executemany(DELETE_DOCUMENT, stale)
 
-        incomplete = incomplete | set([int(e[0]) for e in connection.execute(SELECT_DISTINCT_DOCUMENTS).fetchall()])
+        incomplete = incomplete | set([e[0] for e in connection.execute(SELECT_DISTINCT_DOCUMENTS).fetchall()])
 
     incomplete = list(incomplete)
 
@@ -189,8 +191,8 @@ def extract(connection, update=False, cache=True):
 
         batch = incomplete[i : i + BATCH_SIZE]
 
-        result = {}
-        missing = []
+        result: dict[int, str | None] = {}
+        missing: list[int] = []
 
         for pmid in batch:
             if Path(SOURCE_DIRECTORY, f"{pmid}.xml").exists():

@@ -4,6 +4,7 @@ import requests
 import sys
 
 from pathlib import Path
+from sqlite3 import Connection
 
 # Script Configuration
 
@@ -54,7 +55,7 @@ DELETE_TERM = """
 EXTRACT_GOID = r"http:\/\/purl\.obolibrary\.org\/obo\/GO_(\d{7})"
 
 
-def read(path):
+def read(path: Path):
     with open(path) as file:
         data = json.load(file)
 
@@ -76,7 +77,7 @@ def read(path):
                 yield (goid, label)
 
 
-def download(source, destination):
+def download(source: str, destination: Path):
     temporary = destination.with_suffix(".tmp")
     temporary.parent.mkdir(parents=True, exist_ok=True)
 
@@ -95,7 +96,7 @@ def download(source, destination):
         raise
 
 
-def extract(connection, update=False, cache=True):
+def extract(connection: Connection, update: bool = False, cache: bool = True):
 
     if not SOURCE_FILE.exists() or update:
         download(SOURCE_URL, SOURCE_FILE)
@@ -105,9 +106,9 @@ def extract(connection, update=False, cache=True):
 
     connection.executescript(CREATE_TERMS_TABLE)
 
-    stale = set([int(e[0]) for e in connection.execute(SELECT_DISTINCT_TERMS).fetchall()])
+    stale = [e[0] for e in connection.execute(SELECT_DISTINCT_TERMS).fetchall()]
 
-    batch = []
+    batch: list[tuple[int, str]] = []
 
     for goid, label in read(SOURCE_FILE):
         batch.append((goid, label))

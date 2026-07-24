@@ -1,6 +1,8 @@
 import sqlite3
 
 from pathlib import Path
+from sqlite3 import Connection
+from typing import Callable, Any
 
 ROOT_DIRECTORY = Path(__file__, "../..").resolve()
 
@@ -13,7 +15,7 @@ INITIALIZE_DATABASE = """
 """
 
 
-def execute(proxy, path=None, connection=None, **kwargs):
+def execute(proxy: Callable[[Connection], None], path: Path | None = None, connection: Connection | None = None, **kwargs: Any):
     close = False if connection is None else True
 
     if connection is None:

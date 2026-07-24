@@ -1,6 +1,7 @@
 import sys
 
 from pathlib import Path
+from sqlite3 import Connection
 
 # Script Configuration
 
@@ -44,13 +45,13 @@ INSERT_FREQUENCY = """
 """
 
 
-def compute(connection):
+def compute(connection: Connection):
 
     connection.executescript(CREATE_FREQUENCIES_TABLE)
 
     available = connection.execute(SELECT_AVAILABLE_DOCUMENTS)
 
-    aggregate = []
+    aggregate: list[tuple[str, int, int]] = []
 
     for pmid, body in available:
 
