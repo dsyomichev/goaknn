@@ -24,7 +24,7 @@ CREATE_FREQUENCIES_TABLE = """
         pmid INTEGER NOT NULL,
         frequency INTEGER NOT NULL,
         PRIMARY KEY (token, pmid)
-    );
+    )
 """
 
 SELECT_AVAILABLE_DOCUMENTS = """
@@ -47,7 +47,7 @@ INSERT_FREQUENCY = """
 
 def compute(connection: Connection):
 
-    connection.executescript(CREATE_FREQUENCIES_TABLE)
+    connection.execute(CREATE_FREQUENCIES_TABLE)
 
     available = connection.execute(SELECT_AVAILABLE_DOCUMENTS)
 
@@ -55,7 +55,7 @@ def compute(connection: Connection):
 
     for pmid, body in available:
 
-        tokens = tokenize(body)
+        tokens: list[str] = tokenize(body)
         aggregate.extend([(token, pmid, frequency) for token, frequency in index(tokens)])
 
         if len(aggregate) >= BATCH_SIZE:

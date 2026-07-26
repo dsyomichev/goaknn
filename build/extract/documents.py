@@ -36,7 +36,7 @@ CREATE_DOCUMENT_TABLE = """
     CREATE TABLE IF NOT EXISTS documents (
         pmid INTEGER PRIMARY KEY,
         body TEXT
-    );
+    )
 """
 
 INSERT_DOCUMENT = """
@@ -173,7 +173,7 @@ def fetch(batch: list[int], cache: bool = False):
 
 def extract(connection: Connection, update: bool = False, cache: bool = True):
 
-    connection.executescript(CREATE_DOCUMENT_TABLE)
+    connection.execute(CREATE_DOCUMENT_TABLE)
 
     incomplete = set([e[0] for e in connection.execute(SELECT_INCOMPLETE_DOCUMENTS).fetchall()])
 

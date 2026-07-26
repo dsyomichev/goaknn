@@ -30,7 +30,7 @@ CREATE_TERMS_TABLE = """
     CREATE TABLE IF NOT EXISTS terms (
         goid INTEGER PRIMARY KEY,
         label TEXT NOT NULL
-    );
+    )
 """
 
 INSERT_TERM = """
@@ -104,7 +104,7 @@ def extract(connection: Connection, update: bool = False, cache: bool = True):
         if not cache:
             SOURCE_FILE.unlink()
 
-    connection.executescript(CREATE_TERMS_TABLE)
+    connection.execute(CREATE_TERMS_TABLE)
 
     stale = [e[0] for e in connection.execute(SELECT_DISTINCT_TERMS).fetchall()]
 
@@ -126,7 +126,7 @@ def extract(connection: Connection, update: bool = False, cache: bool = True):
         connection.executemany(INSERT_TERM, batch)
 
     if len(stale) > 0:
-        connection.executemany(DELETE_TERM, [(e,) for e in stale])
+        connection.executemany(DELETE_TERM, [[e] for e in stale])
 
     connection.commit()
 

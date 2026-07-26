@@ -1,7 +1,9 @@
 import sys
 import random
+import pickle
 
 from pathlib import Path
+from sqlite3 import Connection
 
 # Script Configuration
 
@@ -18,22 +20,21 @@ from lib.execute import execute
 
 # SQL Queries
 
+DROP_FOLD_TABLE = """
+    DROP TABLE IF EXISTS folds
+"""
+
 CREATE_FOLD_TABLE = """
     CREATE TABLE IF NOT EXISTS folds (
             pmid INTEGER PRIMARY KEY,
             fold INTEGER
-        );
+        )
 """
 
 SELECT_DISTINCT_DOCUMENTS = """
     SELECT DISTINCT pmid FROM documents
     WHERE body IS NOT NULL
     ORDER BY pmid
-"""
-
-DELETE_FOLD_ASSIGNMENT = """
-    DELETE FROM folds
-    WHERE pmid NOT IN (SELECT pmid from documents)
 """
 
 INSERT_FOLD_ASSIGNMENT = """
@@ -44,21 +45,103 @@ INSERT_FOLD_ASSIGNMENT = """
         fold = excluded.fold
 """
 
-SELECT_DISTINCT_FOLD_VOCABULARY = """
-    SELECT DISTINCT token FROM frequencies
-    WHERE pmid IN (
-        SELECT pmid FROM folds
-        WHERE fold = ?
+DROP_CORPUS_TABLE = """
+    DROP TABLE IF EXISTS corpus
+"""
+
+CREATE_CORPUS_TABLE = """
+    CREATE TABLE corpus AS
+    SELECT token, pmid, frequency FROM frequencies
+        WHERE token IN (
+            SELECT token FROM frequencies
+            WHERE pmid IN (
+                SELECT pmid FROM folds
+                WHERE fold != ?
+            )
+            GROUP BY token
+            HAVING COUNT(DISTINCT pmid) > 5
+        )
+"""
+
+CREATE_CORPUS_INDEX = """
+    CREATE INDEX token_index ON corpus (token);
+    CREATE INDEX pmid_index ON corpus (pmid);
+"""
+
+SELECT_DOCUMENT_TOKEN_AGGREGATE = """
+    SELECT SUM(frequency) FROM corpus
+    WHERE pmid = ?
+"""
+
+SELECT_DOCUMENT_TOKEN_COUNT = """
+    SELECT frequency FROM corpus
+    WHERE pmid = ? AND token = ?
+"""
+
+SELECT_CORPUS_SIZE = """
+    SELECT COUNT(DISTINCT pmid) FROM corpus
+"""
+
+SELECT_CORPUS_COUNT_WITH_TOKEN = """
+    SELECT COUNT(DISTINCT pmid) FROM corpus
+    WHERE token = ?
+"""
+
+SELECT_CORPUS_TOKENS = """
+    SELECT DISTINCT(token) FROM corpus
+    ORDER BY token ASC
+"""
+
+DROP_IDFS_TABLE = """
+    DROP TABLE IF EXISTS idfs
+"""
+
+CREATE_IDFS_TABLE = """
+    CREATE TABLE IF NOT EXISTS idfs (
+        token TEXT PRIMARY KEY,
+        idf FLOAT
     )
 """
 
+INSERT_TOKEN_IDF = """
+    INSERT INTO idfs (token, idf)
+    VALUES (?, ?)
+    ON CONFLICT (token)
+    DO UPDATE SET
+        idf = EXCLUDED.idf
+"""
 
-def assign(connection, k=1):
+SELECT_CORPUS_PMIDS = """
+    SELECT DISTINCT(pmid) FROM corpus
+"""
+
+DROP_VECTORIZATION_TABLE = """
+    DROP TABLE IF EXISTS samples
+"""
+
+CREATE_VECTORIZATION_TABLE = """
+    CREATE TABLE IF NOT EXISTS vectorizations (
+        pmid INTEGER PRIMARY KEY,
+        vector TEXT
+    )
+"""
+
+INSERT_DOCUMENT_VECTORIZATION = """
+    INSERT INTO vectorizations (pmid, vector)
+    VALUES (?, ?)
+    ON CONFLICT (pmid)
+    DO UPDATE SET
+        vector = EXCLUDED.vector
+"""
+
+
+def assign(connection: Connection, k: int = 1):
     random.seed(RANDOM_SEED)
 
-    connection.executescript(CREATE_FOLD_TABLE)
+    connection.execute(DROP_FOLD_TABLE)
+    connection.execute(CREATE_FOLD_TABLE)
 
-    available = [int(e[0]) for e in connection.execute(SELECT_DISTINCT_DOCUMENTS).fetchall()]
+    available = [e[0] for e in connection.execute(SELECT_DISTINCT_DOCUMENTS).fetchall()]
 
     random.shuffle(available)
 
@@ -67,7 +150,7 @@ def assign(connection, k=1):
     for i in range(k):
         split = available[i * size : (i + 1) * size]
 
-        batch = []
+        batch: list[tuple[int, int]] = []
 
         for pmid in split:
             batch.append((pmid, i))
@@ -81,10 +164,87 @@ def assign(connection, k=1):
         if len(batch) > 0:
             connection.executemany(INSERT_FOLD_ASSIGNMENT, batch)
 
-        connection.execute(DELETE_FOLD_ASSIGNMENT)
-
         connection.commit()
 
 
-def vectorize(connection, k=1):
-    pass
+def filter(connection: Connection, ignore: int = -1):
+    connection.execute(DROP_CORPUS_TABLE)
+    connection.execute(CREATE_CORPUS_TABLE, [ignore])
+    connection.executescript(CREATE_CORPUS_INDEX)
+
+
+def precompute(connection: Connection):
+
+    connection.execute(DROP_IDFS_TABLE)
+    connection.execute(CREATE_IDFS_TABLE)
+
+    dictionary = connection.execute(SELECT_CORPUS_TOKENS)
+    size = connection.execute(SELECT_CORPUS_SIZE).fetchone()[0]
+    batch: list[tuple[str, float]] = []
+
+    for (token,) in dictionary:
+        count = connection.execute(SELECT_CORPUS_COUNT_WITH_TOKEN, [token]).fetchone()[0]
+        idf = 0 if count == 0 or count is None else size / count
+
+        batch.append((token, idf))
+
+        if len(batch) > BATCH_SIZE:
+            connection.executemany(INSERT_TOKEN_IDF, batch)
+
+            connection.commit()
+            batch.clear()
+
+    if len(batch) > 0:
+        connection.executemany(INSERT_TOKEN_IDF, batch)
+
+        connection.commit()
+        batch.clear()
+
+
+def vectorize(connection: Connection):
+    connection.execute(DROP_VECTORIZATION_TABLE)
+    connection.execute(CREATE_VECTORIZATION_TABLE)
+
+    dictionary = connection.execute(SELECT_CORPUS_TOKENS)
+    pmids = connection.execute(SELECT_CORPUS_PMIDS)
+
+    batch: list[tuple[int, bytes]] = []
+
+    for (pmid,) in pmids:
+
+        vector: list[float] = []
+        aggregate = connection.execute(SELECT_DOCUMENT_TOKEN_AGGREGATE, [pmid]).fetchone()[0]
+
+        for (token,) in dictionary:
+            count = connection.execute(SELECT_DOCUMENT_TOKEN_COUNT, [pmid, token]).fetchone()
+
+            tf = 0 if count == 0 or count is None else count[0] / aggregate
+
+            vector.append(tf)
+
+        serialized = pickle.dumps(vector)
+
+        batch.append((pmid, serialized))
+
+        if len(batch) > BATCH_SIZE:
+            connection.executemany(INSERT_DOCUMENT_VECTORIZATION, batch)
+
+            connection.commit()
+            batch.clear()
+
+    if len(batch) > 0:
+        connection.executemany(INSERT_DOCUMENT_VECTORIZATION, batch)
+
+        connection.commit()
+        batch.clear()
+
+
+def compute(connection: Connection, k: int = 1, ignore: int = -1):
+    assign(connection, k)
+    filter(connection, ignore)
+    precompute(connection)
+    vectorize(connection)
+
+
+if __name__ == "__main__":
+    execute(compute)

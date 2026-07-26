@@ -32,7 +32,7 @@ CREATE_ANNOTATIONS_TABLE = """
         pmid INTEGER NOT NULL,
         date INTEGER NOT NULL,
         PRIMARY KEY (goid, pmid)
-    );
+    )
 """
 
 INSERT_ANNOTATION = """
@@ -134,7 +134,7 @@ def extract(connection: Connection, update: bool = False, cache: bool = True):
             if not cache:
                 SOURCE_FILE.unlink()
 
-    connection.executescript(CREATE_ANNOTATIONS_TABLE)
+    connection.execute(CREATE_ANNOTATIONS_TABLE)
 
     stale = [(e[0], e[1]) for e in connection.execute(SELECT_DISTINCT_ANNOTATIONS).fetchall()]
 
