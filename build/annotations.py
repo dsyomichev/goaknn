@@ -9,7 +9,7 @@ from sqlite3 import Connection
 
 # Script Configuration
 
-ROOT_DIRECTORY = Path(__file__, "../../..").resolve()
+ROOT_DIRECTORY = Path(__file__, "../..").resolve()
 CACHE_DIRECTORY = ROOT_DIRECTORY.joinpath("data/cache").resolve()
 
 SOURCE_URL = "https://ftp.ebi.ac.uk/pub/databases/GO/goa/UNIPROT/goa_uniprot_all.gaf.gz"
@@ -28,35 +28,36 @@ from lib.util.execute import execute
 
 CREATE_ANNOTATIONS_TABLE = """
     CREATE TABLE IF NOT EXISTS annotations (
-        goid INTEGER NOT NULL,
-        pmid INTEGER NOT NULL,
+        term_id INTEGER NOT NULL,
+        citation_id INTEGER NOT NULL,
         date INTEGER NOT NULL,
-        PRIMARY KEY (goid, pmid)
+        PRIMARY KEY (term_id, citation_id),
+        FOREIGN KEY (term_id) REFERENCES ontology (id)
     )
 """
 
 INSERT_ANNOTATION = """
-    INSERT INTO annotations (goid, pmid, date)
+    INSERT INTO annotations (term_id, citation_id, date)
     VALUES (?, ?, ?)
-    ON CONFLICT (goid, pmid) DO UPDATE
+    ON CONFLICT (term_id, citation_id) DO UPDATE
     SET
         date = MIN(date, excluded.date)
 """
 
-SELECT_DISTINCT_ANNOTATIONS = """
-    SELECT DISTINCT goid, pmid FROM annotations
+SELECT_ALL_ANNOTATIONS = """
+    SELECT term_id, citation_id FROM annotations
 """
 
 DELETE_ANNOTATION = """
     DELETE FROM annotations
-    WHERE goid = ? AND pmid = ?
+    WHERE term_id = ? AND citation_id = ?
 """
 
 # Regex Patterns
 
-EXTRACT_GOID = r"GO:(\d{7})"
+EXTRACT_TERM_ID = r"GO:(\d{7})"
 
-EXTRACT_PMID = r"PMID:(\d+)"
+EXTRACT_CITATION_ID = r"PMID:(\d+)"
 
 
 def checksum(path: Path):
@@ -106,23 +107,23 @@ def read(path: Path):
 
             values = line.rstrip().split("\t")
 
-            result = re.search(EXTRACT_GOID, values[4])
+            result = re.search(EXTRACT_TERM_ID, values[4])
 
             if result is None or result.group(1) is None:
                 continue
 
-            goid = int(result.group(1))
+            term_id = int(result.group(1))
 
-            result = re.search(EXTRACT_PMID, values[5])
+            result = re.search(EXTRACT_CITATION_ID, values[5])
 
             if result is None or result.group(1) is None:
                 continue
 
-            pmid = int(result.group(1))
+            citation_id = int(result.group(1))
 
             date = values[13]
 
-            yield (goid, pmid, date)
+            yield (term_id, citation_id, date)
 
 
 def extract(connection: Connection, update: bool = False, cache: bool = True):
@@ -136,15 +137,15 @@ def extract(connection: Connection, update: bool = False, cache: bool = True):
 
     connection.execute(CREATE_ANNOTATIONS_TABLE)
 
-    stale = [(e[0], e[1]) for e in connection.execute(SELECT_DISTINCT_ANNOTATIONS).fetchall()]
+    stale = [(e[0], e[1]) for e in connection.execute(SELECT_ALL_ANNOTATIONS).fetchall()]
 
     batch: list[tuple[int, int, str]] = []
 
-    for goid, pmid, date in read(SOURCE_FILE):
-        batch.append((goid, pmid, date))
+    for term_id, citation_id, date in read(SOURCE_FILE):
+        batch.append((term_id, citation_id, date))
 
-        if (goid, pmid) in stale:
-            stale.remove((goid, pmid))
+        if (term_id, citation_id) in stale:
+            stale.remove((term_id, citation_id))
 
         if len(batch) >= BATCH_SIZE:
             connection.executemany(INSERT_ANNOTATION, batch)
