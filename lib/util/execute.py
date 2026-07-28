@@ -4,7 +4,7 @@ from pathlib import Path
 from sqlite3 import Connection
 from typing import Callable, Any
 
-ROOT_DIRECTORY = Path(__file__, "../..").resolve()
+ROOT_DIRECTORY = Path(__file__, "../../..").resolve()
 
 DATABASE_FILE = ROOT_DIRECTORY.joinpath("data/base.db").resolve()
 

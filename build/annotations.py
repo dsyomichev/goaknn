@@ -22,7 +22,7 @@ CHUNK_SIZE = 65536
 
 sys.path.insert(0, str(ROOT_DIRECTORY))
 
-from lib.execute import execute
+from lib.util.execute import execute
 
 # SQL Queries
 
