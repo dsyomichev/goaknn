@@ -2,6 +2,8 @@ import numpy
 
 from sqlite3 import Connection
 from sklearn.feature_extraction.text import TfidfVectorizer
+from scipy.sparse import spmatrix, coo_matrix  # type: ignore
+from numpy import ndarray, float64
 
 # Script Configuration
 
@@ -9,10 +11,10 @@ BATCH_SIZE = 20000
 
 # SQL Queries
 
-SELECT_DOCUMENTS = """
-    SELECT pmid, body FROM documents
-    WHERE body IS NOT NULL
-    ORDER BY pmid
+SELECT_CITATIONS = """
+    SELECT id, content FROM corpus
+    WHERE content IS NOT NULL
+    ORDER BY id
 """
 
 DROP_VOCABULARY_TABLE = """
@@ -21,18 +23,18 @@ DROP_VOCABULARY_TABLE = """
 
 CREATE_VOCABULARY_TABLE = """
     CREATE TABLE IF NOT EXISTS vocabulary (
-        token TEXT PRIMARY KEY,
+        token TEXT NOT NULL,
         position INTEGER NOT NULL,
-        value FLOAT NOT NULL
+        value FLOAT NOT NULL,
+        PRIMARY KEY (token, position)
     )
 """
 
 INSERT_TOKEN = """
     INSERT INTO vocabulary (token, position, value)
     VALUES (?, ?, ?)
-    ON CONFLICT (token)
+    ON CONFLICT (token, position)
     DO UPDATE SET
-        position = excluded.position,
         value = excluded.value
 """
 
@@ -41,27 +43,51 @@ SELECT_TOKENS = """
     ORDER BY position
 """
 
+DROP_VECTORIZATIONS_TABLE = """
+    DROP TABLE IF EXISTS vectorizations
+"""
+
+CREATE_VECTORIZATIONS_TABLE = """
+    CREATE TABLE IF NOT EXISTS vectorizations (
+        id INTEGER NOT NULL,
+        position INTEGER NOT NULL,
+        value FLOAT NOT NULL,
+        PRIMARY KEY (id, position),
+        FOREIGN KEY (id) REFERENCES corpus (id),
+        FOREIGN KEY (position) REFERENCES vocabulary (position)
+
+    )
+"""
+
+INSERT_VECTORIZATION = """
+    INSERT INTO vectorizations (id, position, value)
+    VALUES (?, ?, ?)
+    ON CONFLICT (id, position)
+    DO UPDATE SET
+        value = excluded.value
+"""
+
 
 class DatabaseClient:
 
     def __init__(self, connection: Connection):
         self.connection = connection
 
-    def get_documents(self):
-        documents = self.connection.execute(SELECT_DOCUMENTS)
+    def get_citations(self):
+        citations = self.connection.execute(SELECT_CITATIONS)
 
         X: list[str] = []
         y: list[int] = []
 
-        for pmid, body in documents:
+        for id, body in citations:
             X.append(body)
-            y.append(pmid)
+            y.append(id)
 
         return numpy.array(X), numpy.array(y)
 
     def get_vectorizer(self, vectorizer: TfidfVectorizer):
         vocabulary: dict[str, int] = {}
-        idf: list[numpy.float64] = []
+        idf: list[float64] = []
 
         for token, position, value in self.connection.execute(SELECT_TOKENS):
             vocabulary[token] = position
@@ -86,8 +112,33 @@ class DatabaseClient:
                 self.connection.commit()
                 batch.clear()
 
-        if len(batch) > 0:
+        if batch:
             self.connection.executemany(INSERT_TOKEN, batch)
 
             self.connection.commit()
             batch.clear()
+
+    def get_vectorizations(self):
+        pass
+
+    def set_vectorizations(self, X_: spmatrix, y: ndarray):
+        self.connection.execute(DROP_VECTORIZATIONS_TABLE)
+        self.connection.execute(CREATE_VECTORIZATIONS_TABLE)
+
+        batch: list[tuple[int, int, float]] = []
+
+        translation = coo_matrix(X_)
+
+        for i, j, value in zip(translation.row, translation.col, translation.data):  # type: ignore
+            batch.append((int(y[i]), int(j), float(value)))  # type: ignore
+
+            if len(batch) >= BATCH_SIZE:
+                self.connection.executemany(INSERT_VECTORIZATION, batch)
+
+                self.connection.commit()
+                batch.clear()
+
+        if batch:
+            self.connection.executemany(INSERT_VECTORIZATION, batch)
+
+            self.connection.commit()

@@ -24,13 +24,15 @@ warnings.filterwarnings("ignore")
 def main(connection: Connection):
     client = DatabaseClient(connection)
 
-    X, y = client.get_documents()
+    X, y = client.get_citations()
 
     vectorizer = TfidfVectorizer(tokenizer=tokenizer, stop_words=stop_words, min_df=5)
+
     client.get_vectorizer(vectorizer)
 
-    result = vectorizer.transform(X[:1])  # type: ignore
-    print(result)
+    X_ = vectorizer.transform(X)  # type: ignore
+
+    client.set_vectorizations(X_, y)
 
 
 if __name__ == "__main__":

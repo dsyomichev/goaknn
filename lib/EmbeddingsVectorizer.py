@@ -5,6 +5,7 @@ from sklearn.base import BaseEstimator
 from transformers import AutoModel, AutoTokenizer
 from collections.abc import Iterable
 from typing import Any
+from numpy import ndarray
 
 
 class EmbeddingsVectorizer(BaseEstimator):
@@ -17,7 +18,7 @@ class EmbeddingsVectorizer(BaseEstimator):
         return self
 
     def transform(self, X: Iterable[str]):
-        result: list[numpy.ndarray] = []
+        result: list[ndarray] = []
 
         for sample in X:
 

@@ -153,10 +153,10 @@ def extract(connection: Connection, update: bool = False, cache: bool = True):
             connection.commit()
             batch.clear()
 
-    if len(batch) > 0:
+    if batch:
         connection.executemany(INSERT_ANNOTATION, batch)
 
-    if len(stale) > 0:
+    if stale:
         connection.executemany(DELETE_ANNOTATION, stale)
 
     connection.commit()

@@ -122,10 +122,10 @@ def extract(connection: Connection, update: bool = False, cache: bool = True):
             connection.commit()
             batch.clear()
 
-    if len(batch) > 0:
+    if batch:
         connection.executemany(INSERT_TERM, batch)
 
-    if len(stale) > 0:
+    if stale:
         connection.executemany(DELETE_TERM, [[term] for term in stale])
 
     connection.commit()
