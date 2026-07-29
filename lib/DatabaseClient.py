@@ -2,8 +2,9 @@ import numpy
 
 from sqlite3 import Connection
 from sklearn.feature_extraction.text import TfidfVectorizer
-from scipy.sparse import spmatrix, coo_matrix  # type: ignore
+from scipy.sparse import sparray, coo_array  # type: ignore
 from numpy import ndarray, float64
+from itertools import groupby
 
 # Script Configuration
 
@@ -14,7 +15,7 @@ BATCH_SIZE = 20000
 SELECT_CITATIONS = """
     SELECT id, content FROM corpus
     WHERE content IS NOT NULL
-    ORDER BY id
+    ORDER BY id ASC
 """
 
 DROP_VOCABULARY_TABLE = """
@@ -40,7 +41,11 @@ INSERT_TOKEN = """
 
 SELECT_TOKENS = """
     SELECT token, position, value FROM vocabulary
-    ORDER BY position
+    ORDER BY position ASC
+"""
+
+SELECT_TOKEN_COUNT = """
+    SELECT COUNT(*) FROM vocabulary
 """
 
 DROP_VECTORIZATIONS_TABLE = """
@@ -65,6 +70,11 @@ INSERT_VECTORIZATION = """
     ON CONFLICT (id, position)
     DO UPDATE SET
         value = excluded.value
+"""
+
+SELECT_VECTORIZATIONS = """
+    SELECT id, position, value FROM vectorizations
+    ORDER BY id ASC
 """
 
 
@@ -119,15 +129,35 @@ class DatabaseClient:
             batch.clear()
 
     def get_vectorizations(self):
-        pass
+        row: list[int] = []
+        col: list[int] = []
+        data: list[float] = []
 
-    def set_vectorizations(self, X_: spmatrix, y: ndarray):
+        y: list[int] = []
+
+        cursor = self.connection.execute(SELECT_VECTORIZATIONS)
+
+        for i, (id, group) in enumerate(groupby(cursor, key=lambda v: v[0])):
+            for _, position, value in group:
+                row.append(i)
+                col.append(position)
+                data.append(value)
+
+            y.append(id)
+
+        count = self.connection.execute(SELECT_TOKEN_COUNT).fetchone()[0]
+
+        X_: sparray = coo_array((data, (row, col)), shape=(len(y), count)).tocsr()
+
+        return X_, numpy.array(y)
+
+    def set_vectorizations(self, X_: sparray, y: ndarray):
         self.connection.execute(DROP_VECTORIZATIONS_TABLE)
         self.connection.execute(CREATE_VECTORIZATIONS_TABLE)
 
         batch: list[tuple[int, int, float]] = []
 
-        translation = coo_matrix(X_)
+        translation = coo_array(X_)
 
         for i, j, value in zip(translation.row, translation.col, translation.data):  # type: ignore
             batch.append((int(y[i]), int(j), float(value)))  # type: ignore
