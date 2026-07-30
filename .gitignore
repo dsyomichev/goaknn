@@ -1,13 +1,12 @@
-# Environement
 .env
-.venv
-
-# System
 .DS_Store
 
-# Editor
 .vscode
+.venv
 
-# Cache and Data Store
-**/data/
 **/__pycache__/
+**/cache/
+
+**/*.db
+**/*.db-shm
+**/*.db-wal

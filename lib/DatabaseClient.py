@@ -1,7 +1,6 @@
 import numpy
 
 from sqlite3 import Connection
-from sklearn.feature_extraction.text import TfidfVectorizer
 from scipy.sparse import sparray, coo_array  # type: ignore
 from numpy import ndarray, float64
 from itertools import groupby
@@ -77,6 +76,11 @@ SELECT_VECTORIZATIONS = """
     ORDER BY id ASC
 """
 
+SELECT_ANNOTATION = """
+    SELECT DISTINCT term_id FROM annotations
+    WHERE citation_id = ?
+"""
+
 
 class DatabaseClient:
 
@@ -95,26 +99,32 @@ class DatabaseClient:
 
         return numpy.array(X), numpy.array(y)
 
-    def get_vectorizer(self, vectorizer: TfidfVectorizer):
+    def get_annotations(self, y_: ndarray):
+        annotations: dict[int, list[int]] = {}
+
+        for id in [int(id) for id in y_]:
+            annotations[id] = [term_id for (term_id,) in self.connection.execute(SELECT_ANNOTATION, [id])]
+
+        return annotations
+
+    def get_vocabulary(self):
         vocabulary: dict[str, int] = {}
         idf: list[float64] = []
 
         for token, position, value in self.connection.execute(SELECT_TOKENS):
             vocabulary[token] = position
-            idf.append(numpy.float64(value))
+            idf.append(float64(value))
 
-        vectorizer.vocabulary_ = vocabulary
-        vectorizer.fixed_vocabulary_ = False
-        vectorizer.idf_ = numpy.array(idf)
+        return vocabulary, numpy.array(idf)
 
-    def set_vectorizer(self, vectorizer: TfidfVectorizer):
+    def set_vocabulary(self, vocabulary: dict[str, int], ifd: list[float64]):
         self.connection.execute(DROP_VOCABULARY_TABLE)
         self.connection.execute(CREATE_VOCABULARY_TABLE)
 
         batch: list[tuple[str, int, float]] = []
 
-        for token, position in vectorizer.vocabulary_.items():  # type: ignore
-            batch.append((token, position, vectorizer.idf_[position].item()))  # type: ignore
+        for token, position in vocabulary.items():  # type: ignore
+            batch.append((token, position, idf[position].item()))  # type: ignore
 
             if len(batch) > BATCH_SIZE:
                 self.connection.executemany(INSERT_TOKEN, batch)
@@ -137,7 +147,7 @@ class DatabaseClient:
 
         cursor = self.connection.execute(SELECT_VECTORIZATIONS)
 
-        for i, (id, group) in enumerate(groupby(cursor, key=lambda v: v[0])):
+        for i, (id, group) in enumerate(groupby(cursor, key=lambda item: item[0])):
             for _, position, value in group:
                 row.append(i)
                 col.append(position)
