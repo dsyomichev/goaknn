@@ -8,9 +8,9 @@ from typing import Any
 from numpy import ndarray
 
 
-class EmbeddingsVectorizer(BaseEstimator):
+class BertVectorizer(BaseEstimator):
 
-    def __init__(self, model: str, device: str = "cpu"):
+    def __init__(self, model: str, device: str = "cuda" if torch.cuda.is_available() else "cpu"):
         self.tokenizer = AutoTokenizer.from_pretrained(model)  # type: ignore
         self.model = AutoModel.from_pretrained(model).to(device).eval()  # type: ignore
 
