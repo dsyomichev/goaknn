@@ -1,38 +1,50 @@
-import torch
-import numpy
+from torch import cuda, no_grad
+from numpy import array, float64
+from transformers import AutoModel, AutoTokenizer
 
 from sklearn.base import BaseEstimator
-from transformers import AutoModel, AutoTokenizer
 from collections.abc import Iterable
-from typing import Any
-from numpy import float64
-from numpy.typing import NDArray
+from typing import Any, Self
+from numpy import ndarray, dtype
 
 
 class BertVectorizer(BaseEstimator):
 
-    def __init__(self, model: str, device: str = "cuda" if torch.cuda.is_available() else "cpu"):
+    def __init__(
+        self, model: str, device: str = "cuda" if cuda.is_available() else "cpu"
+    ) -> None:
         self.tokenizer = AutoTokenizer.from_pretrained(model)  # type: ignore
         self.model = AutoModel.from_pretrained(model).to(device).eval()  # type: ignore
 
-    def fit(self, X: Iterable[str], y: Any = None):
+    def fit(
+        self,
+        X: Iterable[str],
+        y: Any = None,
+    ) -> Self:
         return self
 
-    def transform(self, X: Iterable[str]):
-        result: list[NDArray[float64]] = []
+    def transform(
+        self,
+        X: Iterable[str],
+    ) -> ndarray[tuple[int, int], dtype[float64]]:
+        result: list[ndarray[tuple[int], dtype[float64]]] = []
 
         for sample in X:
 
             tokens = self.tokenizer(sample, return_tensors="pt", truncation=True).to(DEVICE_TYPE)  # type: ignore
 
-            with torch.no_grad():
+            with no_grad():
                 output = self.model(**tokens)  # type: ignore
 
             vectors = output.last_hidden_state.squeeze(0)  # type: ignore
 
             result.append(vectors.cpu().numpy())  # type: ignore
 
-        return numpy.array(result, dtype=float64)
+        return array(result, dtype=float64)
 
-    def fit_tranform(self, X: Iterable[str], y: Any = None):
+    def fit_tranform(
+        self,
+        X: Iterable[str],
+        y: Any = None,
+    ) -> ndarray[tuple[int, int], dtype[float64]]:
         return self.fit(X, y).transform(X)

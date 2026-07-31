@@ -1,11 +1,13 @@
-import numpy
+from numpy import array, pad, iinfo, float64, int_
+from numpy.ma import masked_equal
+from itertools import groupby
+from scipy.sparse import coo_array  # type: ignore
 
 from sqlite3 import Connection
-from scipy.sparse import sparray, coo_array  # type: ignore
-from numpy import float64, int32
-from itertools import groupby
-from numpy.typing import NDArray
-from numpy.dtypes import StringDType
+from scipy.sparse import sparray  # type: ignore
+from numpy import ndarray, dtype
+from numpy.ma import masked_array
+from collections.abc import Iterable
 
 # Script Configuration
 
@@ -78,18 +80,23 @@ SELECT_VECTORIZATIONS = """
     ORDER BY id ASC
 """
 
-SELECT_ANNOTATION = """
-    SELECT DISTINCT term_id FROM annotations
-    WHERE citation_id = ?
+SELECT_ANNOTATIONS = """
+    SELECT citation_id, term_id FROM annotations
+    ORDER BY citation_id ASC
 """
 
 
 class DatabaseClient:
 
-    def __init__(self, connection: Connection):
+    def __init__(
+        self,
+        connection: Connection,
+    ) -> None:
         self.connection = connection
 
-    def get_citations(self):
+    def get_citations(
+        self,
+    ) -> tuple[Iterable[str], ndarray[tuple[int], dtype[int_]]]:
         citations = self.connection.execute(SELECT_CITATIONS)
 
         X: list[str] = []
@@ -99,28 +106,52 @@ class DatabaseClient:
             X.append(body)
             y.append(id)
 
-        return numpy.array(X, dtype=StringDType()), numpy.array(y, dtype=int32)
+        return X, array(y, dtype=int_)
 
-    def get_annotations(self, y: NDArray[int32]):
-        annotations: list[NDArray[int32]] = []
+    def get_annotations(
+        self,
+    ) -> tuple[
+        ndarray[tuple[int], dtype[int_]], masked_array[tuple[int, int], dtype[int_]]
+    ]:
+        y: list[int] = []
+        Z: list[list[int]] = []  # type: ignore
 
-        for id in y:
-            terms = self.connection.execute(SELECT_ANNOTATION, [id.item()])
-            annotations.append(numpy.array([term_id for (term_id,) in terms], dtype=int32))
+        cursor = self.connection.execute(SELECT_ANNOTATIONS)
 
-        return annotations
+        width = 0
 
-    def get_vocabulary(self):
+        for citation_id, group in groupby(cursor, key=lambda item: item[0]):
+            z: list[int] = []
+
+            for _, term_id in group:
+                z.append(term_id)
+
+            y.append(citation_id)
+            Z.append(z)  # type: ignore
+
+            width = len(z) if len(z) > width else width
+
+        Z: list[ndarray[tuple[int], dtype[int_]]] = [pad(z, (0, width - len(z)), constant_values=iinfo(int_).min) for z in Z]  # type: ignore
+
+        return array(y, dtype=int_), masked_equal(Z, iinfo(int_).min)
+
+    def get_vocabulary(
+        self,
+    ) -> tuple[dict[str, int], ndarray[tuple[int], dtype[float64]]]:
         vocabulary: dict[str, int] = {}
-        idf: list[float64] = []
+        idf: list[float] = []
 
         for token, position, value in self.connection.execute(SELECT_TOKENS):
             vocabulary[token] = position
-            idf.append(float64(value))
+            idf.append(value)
 
-        return vocabulary, numpy.array(idf, dtype=float64)
+        return vocabulary, array(idf, dtype=float64)
 
-    def set_vocabulary(self, vocabulary: dict[str, int], idf: NDArray[float64]):
+    def set_vocabulary(
+        self,
+        vocabulary: dict[str, int],
+        idf: ndarray[tuple[int], dtype[float64]],
+    ) -> None:
         self.connection.execute(DROP_VOCABULARY_TABLE)
         self.connection.execute(CREATE_VOCABULARY_TABLE)
 
@@ -141,7 +172,12 @@ class DatabaseClient:
             self.connection.commit()
             batch.clear()
 
-    def get_vectorizations(self):
+    def get_vectorizations(
+        self,
+    ) -> tuple[
+        sparray,
+        ndarray[tuple[int], dtype[int_]],
+    ]:
         row: list[int] = []
         col: list[int] = []
         data: list[float] = []
@@ -160,9 +196,15 @@ class DatabaseClient:
 
         count = self.connection.execute(SELECT_TOKEN_COUNT).fetchone()[0]
 
-        return coo_array((data, (row, col)), dtype=float64, shape=(len(y), count)).tocsr(), numpy.array(y, dtype=int32)
+        return coo_array(
+            (data, (row, col)), dtype=float64, shape=(len(y), count)
+        ).tocsr(), array(y, dtype=int_)
 
-    def set_vectorizations(self, X_: sparray, y: NDArray[int32]):
+    def set_vectorizations(
+        self,
+        X_: sparray,
+        y: ndarray[tuple[int], dtype[int_]],
+    ) -> None:
         self.connection.execute(DROP_VECTORIZATIONS_TABLE)
         self.connection.execute(CREATE_VECTORIZATIONS_TABLE)
 

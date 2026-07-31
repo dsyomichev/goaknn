@@ -7,6 +7,7 @@ from lib.util.execute import execute
 from lib.util.tokenizer import tokenizer
 from lib.util.stop_words import stop_words
 from lib.DatabaseClient import DatabaseClient
+
 from lib.OntologyEstimator import OntologyEstimator
 
 warnings.filterwarnings("ignore")
@@ -23,13 +24,14 @@ def main(connection: Connection):
     estimator = OntologyEstimator(client, n_neighbors=200, n_jobs=-1)
 
     vocabulary, idf = client.get_vocabulary()
-    X_, y = client.get_vectorizations()
+    X_, _ = client.get_vectorizations()
+    _, Z = client.get_annotations()
 
     transformer.vocabulary_ = vocabulary
     transformer.fixed_vocabulary_ = False
     transformer.idf_ = idf
 
-    estimator.fit(X_, y)
+    estimator.fit(X_, Z)
 
     predictions, scores = estimator.predict(transformer.transform([TEST_STRING]))  # type: ignore
 
