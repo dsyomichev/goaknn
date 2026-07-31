@@ -20,12 +20,10 @@ def main(connection: Connection):
     client = DatabaseClient(connection)
 
     transformer = TfidfVectorizer(tokenizer=tokenizer, stop_words=stop_words)
-    estimator = OntologyEstimator(client, n_neighbors=200)
+    estimator = OntologyEstimator(client, n_neighbors=200, n_jobs=-1)
 
     vocabulary, idf = client.get_vocabulary()
     X_, y = client.get_vectorizations()
-
-    print("Loaded vocabulary, idf, and vectorizations.")
 
     transformer.vocabulary_ = vocabulary
     transformer.fixed_vocabulary_ = False

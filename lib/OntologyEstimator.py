@@ -33,11 +33,14 @@ class OntologyEstimator(BaseEstimator):
             citation_ids = numpy.array(self.y)[index]
             annotations = self.client.get_annotations(citation_ids)
 
-            for weight, citation_id in zip(distance, citation_ids):
+            distance = (distance - distance.min()) / (distance.max() - distance.min())
+
+            for normalized, citation_id in zip(distance, citation_ids):
                 term_ids = annotations[citation_id]
+                weight = 1 - normalized
 
                 for term_id in term_ids:
-                    result[term_id] = result[term_id] + 1 / (weight + 1) if term_id in result else 1 / (weight + 1)
+                    result[term_id] = result[term_id] + weight if term_id in result else weight
 
             predictions.append(sorted(result.items(), key=lambda item: item[1], reverse=True))
 
