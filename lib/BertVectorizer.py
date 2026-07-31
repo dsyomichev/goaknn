@@ -5,7 +5,8 @@ from sklearn.base import BaseEstimator
 from transformers import AutoModel, AutoTokenizer
 from collections.abc import Iterable
 from typing import Any
-from numpy import ndarray
+from numpy import float64
+from numpy.typing import NDArray
 
 
 class BertVectorizer(BaseEstimator):
@@ -18,7 +19,7 @@ class BertVectorizer(BaseEstimator):
         return self
 
     def transform(self, X: Iterable[str]):
-        result: list[ndarray] = []
+        result: list[NDArray[float64]] = []
 
         for sample in X:
 
@@ -31,7 +32,7 @@ class BertVectorizer(BaseEstimator):
 
             result.append(vectors.cpu().numpy())  # type: ignore
 
-        return numpy.array(result)
+        return numpy.array(result, dtype=float64)
 
     def fit_tranform(self, X: Iterable[str], y: Any = None):
         return self.fit(X, y).transform(X)

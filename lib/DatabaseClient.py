@@ -2,8 +2,10 @@ import numpy
 
 from sqlite3 import Connection
 from scipy.sparse import sparray, coo_array  # type: ignore
-from numpy import ndarray, float64
+from numpy import float64, int32
 from itertools import groupby
+from numpy.typing import NDArray
+from numpy.dtypes import StringDType
 
 # Script Configuration
 
@@ -97,13 +99,14 @@ class DatabaseClient:
             X.append(body)
             y.append(id)
 
-        return numpy.array(X), numpy.array(y)
+        return numpy.array(X, dtype=StringDType()), numpy.array(y, dtype=int32)
 
-    def get_annotations(self, y_: ndarray):
-        annotations: dict[int, list[int]] = {}
+    def get_annotations(self, y: NDArray[int32]):
+        annotations: list[NDArray[int32]] = []
 
-        for id in [int(id) for id in y_]:
-            annotations[id] = [term_id for (term_id,) in self.connection.execute(SELECT_ANNOTATION, [id])]
+        for id in y:
+            terms = self.connection.execute(SELECT_ANNOTATION, [id.item()])
+            annotations.append(numpy.array([term_id for (term_id,) in terms], dtype=int32))
 
         return annotations
 
@@ -115,9 +118,9 @@ class DatabaseClient:
             vocabulary[token] = position
             idf.append(float64(value))
 
-        return vocabulary, numpy.array(idf)
+        return vocabulary, numpy.array(idf, dtype=float64)
 
-    def set_vocabulary(self, vocabulary: dict[str, int], ifd: list[float64]):
+    def set_vocabulary(self, vocabulary: dict[str, int], idf: NDArray[float64]):
         self.connection.execute(DROP_VOCABULARY_TABLE)
         self.connection.execute(CREATE_VOCABULARY_TABLE)
 
@@ -157,11 +160,9 @@ class DatabaseClient:
 
         count = self.connection.execute(SELECT_TOKEN_COUNT).fetchone()[0]
 
-        X_: sparray = coo_array((data, (row, col)), shape=(len(y), count)).tocsr()
+        return coo_array((data, (row, col)), dtype=float64, shape=(len(y), count)).tocsr(), numpy.array(y, dtype=int32)
 
-        return X_, numpy.array(y)
-
-    def set_vectorizations(self, X_: sparray, y: ndarray):
+    def set_vectorizations(self, X_: sparray, y: NDArray[int32]):
         self.connection.execute(DROP_VECTORIZATIONS_TABLE)
         self.connection.execute(CREATE_VECTORIZATIONS_TABLE)
 
@@ -170,7 +171,7 @@ class DatabaseClient:
         translation = coo_array(X_)
 
         for i, j, value in zip(translation.row, translation.col, translation.data):  # type: ignore
-            batch.append((int(y[i]), int(j), float(value)))  # type: ignore
+            batch.append((y[i].item(), j.item(), value.item()))  # type: ignore
 
             if len(batch) >= BATCH_SIZE:
                 self.connection.executemany(INSERT_VECTORIZATION, batch)

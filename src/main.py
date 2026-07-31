@@ -31,9 +31,9 @@ def main(connection: Connection):
 
     estimator.fit(X_, y)
 
-    result = estimator.predict(transformer.transform([TEST_STRING]))  # type: ignore
+    predictions, scores = estimator.predict(transformer.transform([TEST_STRING]))  # type: ignore
 
-    print(result)
+    print(predictions, scores)
 
 
 """
