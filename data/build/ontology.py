@@ -1,10 +1,12 @@
 import json
 import re
 import requests
-import sys
 
 from pathlib import Path
 from sqlite3 import Connection
+from typing import Generator
+
+from lib.util.execute import execute
 
 # Script Configuration
 
@@ -17,12 +19,6 @@ SOURCE_FILE = ROOT_DIRECTORY.joinpath("data/cache/go-basic.json").resolve()
 
 BATCH_SIZE = 2000
 CHUNK_SIZE = 65536
-
-# Import Local Modules
-
-sys.path.insert(0, str(ROOT_DIRECTORY))
-
-from lib.util.execute import execute
 
 # SQL Queries
 
@@ -55,7 +51,7 @@ DELETE_TERM = """
 EXTRACT_ID = r"http:\/\/purl\.obolibrary\.org\/obo\/GO_(\d{7})"
 
 
-def read(path: Path):
+def read(path: Path) -> Generator[tuple[int, str]]:
     with open(path) as file:
         data = json.load(file)
 
@@ -77,7 +73,10 @@ def read(path: Path):
                 yield (id, label)
 
 
-def download(source: str, destination: Path):
+def download(
+    source: str,
+    destination: Path,
+) -> None:
     temporary = destination.with_suffix(".tmp")
     temporary.parent.mkdir(parents=True, exist_ok=True)
 
@@ -96,7 +95,11 @@ def download(source: str, destination: Path):
         raise
 
 
-def extract(connection: Connection, update: bool = False, cache: bool = True):
+def extract(
+    connection: Connection,
+    update: bool = False,
+    cache: bool = True,
+) -> None:
 
     if not SOURCE_FILE.exists() or update:
         download(SOURCE_URL, SOURCE_FILE)
@@ -106,7 +109,7 @@ def extract(connection: Connection, update: bool = False, cache: bool = True):
 
     connection.execute(CREATE_ONTOLOGY_TABLE)
 
-    stale = [term[0] for term in connection.execute(SELECT_ALL_TERMS).fetchall()]
+    stale = [e[0] for e in connection.execute(SELECT_ALL_TERMS).fetchall()]
 
     batch: list[tuple[int, str]] = []
 
@@ -126,7 +129,7 @@ def extract(connection: Connection, update: bool = False, cache: bool = True):
         connection.executemany(INSERT_TERM, batch)
 
     if stale:
-        connection.executemany(DELETE_TERM, [[term] for term in stale])
+        connection.executemany(DELETE_TERM, [[e] for e in stale])
 
     connection.commit()
 

@@ -2,10 +2,12 @@ import gzip
 import hashlib
 import re
 import requests
-import sys
 
 from pathlib import Path
 from sqlite3 import Connection
+from typing import Generator
+
+from lib.util.execute import execute
 
 # Script Configuration
 
@@ -17,12 +19,6 @@ SOURCE_FILE = ROOT_DIRECTORY.joinpath("data/cache/goa_uniprot_all.gaf.gz").resol
 
 BATCH_SIZE = 20000
 CHUNK_SIZE = 65536
-
-# Import Local Modules
-
-sys.path.insert(0, str(ROOT_DIRECTORY))
-
-from lib.util.execute import execute
 
 # SQL Queries
 
@@ -60,7 +56,9 @@ EXTRACT_TERM_ID = r"GO:(\d{7})"
 EXTRACT_CITATION_ID = r"PMID:(\d+)"
 
 
-def checksum(path: Path):
+def checksum(
+    path: Path,
+) -> str | None:
     if not path.exists():
         return None
 
@@ -73,14 +71,20 @@ def checksum(path: Path):
     return digest.hexdigest()
 
 
-def validate(remote: str, local: Path):
+def validate(
+    remote: str,
+    local: Path,
+) -> bool:
     response = requests.get(remote + ".md5")
     response.raise_for_status()
 
     return response.text.strip().split()[0] == checksum(local)
 
 
-def download(source: str, destination: Path):
+def download(
+    source: str,
+    destination: Path,
+) -> None:
     temporary = destination.with_suffix(".tmp")
     temporary.parent.mkdir(parents=True, exist_ok=True)
 
@@ -99,7 +103,9 @@ def download(source: str, destination: Path):
         raise
 
 
-def read(path: Path):
+def read(
+    path: Path,
+) -> Generator[tuple[int, int, str]]:
     with gzip.open(path, "rt") as file:
         for line in file:
             if line.startswith("!"):
@@ -126,7 +132,11 @@ def read(path: Path):
             yield (term_id, citation_id, date)
 
 
-def extract(connection: Connection, update: bool = False, cache: bool = True):
+def extract(
+    connection: Connection,
+    update: bool = False,
+    cache: bool = True,
+) -> None:
 
     if not SOURCE_FILE.exists() or update:
         if not validate(SOURCE_URL, SOURCE_FILE):
@@ -137,7 +147,9 @@ def extract(connection: Connection, update: bool = False, cache: bool = True):
 
     connection.execute(CREATE_ANNOTATIONS_TABLE)
 
-    stale = [(e[0], e[1]) for e in connection.execute(SELECT_ALL_ANNOTATIONS).fetchall()]
+    stale = [
+        (e[0], e[1]) for e in connection.execute(SELECT_ALL_ANNOTATIONS).fetchall()
+    ]
 
     batch: list[tuple[int, int, str]] = []
 

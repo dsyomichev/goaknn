@@ -1,12 +1,13 @@
 import os
 import requests
-import sys
 import time
 
 from pathlib import Path
 from xml.etree import ElementTree
 from sqlite3 import Connection
 from requests import Response
+
+from lib.util.execute import execute
 
 # Script Configuration
 
@@ -23,12 +24,6 @@ SOURCE_DIRECTORY = ROOT_DIRECTORY.joinpath("data/cache/efetch").resolve()
 BATCH_SIZE = 200
 REQUEST_INTERVAL = 1 / 10 if API_KEY else 1 / 3
 MAX_RETRIES = 3
-
-# Import Local Modules
-
-sys.path.insert(0, str(ROOT_DIRECTORY))
-
-from lib.util.execute import execute
 
 # Database Queries
 
@@ -70,7 +65,9 @@ DELETE_CITATION = """
 """
 
 
-def process(element: ElementTree.Element):
+def process(
+    element: ElementTree.Element,
+) -> str | None:
     child = element.find(".//Abstract")
 
     if child is None:
@@ -81,7 +78,9 @@ def process(element: ElementTree.Element):
     return "\n\n".join(parts)
 
 
-def read(path: Path):
+def read(
+    path: Path,
+) -> str | None:
     root = ElementTree.parse(path).getroot()
     element = root.find("./MedlineCitation")
 
@@ -91,7 +90,9 @@ def read(path: Path):
     return process(element)
 
 
-def write(response: Response):
+def write(
+    response: Response,
+) -> None:
     root = ElementTree.fromstring(response.content)
 
     SOURCE_DIRECTORY.mkdir(parents=True, exist_ok=True)
@@ -110,10 +111,15 @@ def write(response: Response):
 
         path = Path(SOURCE_DIRECTORY, f"{id}.xml")
 
-        ElementTree.ElementTree(element).write(path, encoding="utf-8", xml_declaration=True)
+        ElementTree.ElementTree(element).write(
+            path, encoding="utf-8", xml_declaration=True
+        )
 
 
-def parse(response: Response, batch: list[int]):
+def parse(
+    response: Response,
+    batch: list[int],
+) -> dict[int, str | None]:
 
     result: dict[int, str | None] = {e: None for e in batch}
 
@@ -139,7 +145,10 @@ def parse(response: Response, batch: list[int]):
     return result
 
 
-def fetch(batch: list[int], cache: bool = False):
+def fetch(
+    batch: list[int],
+    cache: bool = False,
+) -> dict[int, str | None] | None:
     payload = {"db": "pubmed", "rettype": "abstract", "retmod": "xml"}
 
     if PROJECT_NAME:
@@ -172,17 +181,25 @@ def fetch(batch: list[int], cache: bool = False):
             raise
 
 
-def extract(connection: Connection, update: bool = False, cache: bool = True):
+def extract(
+    connection: Connection,
+    update: bool = False,
+    cache: bool = True,
+) -> None:
 
     connection.execute(CREATE_CORPUS_TABLE)
 
-    incomplete = set([e[0] for e in connection.execute(SELECT_INCOMPLETE_CITATIONS).fetchall()])
+    incomplete = set(
+        [e[0] for e in connection.execute(SELECT_INCOMPLETE_CITATIONS).fetchall()]
+    )
 
     if update:
         stale = [e[0] for e in connection.execute(SELECT_STALE_CITATIONS).fetchall()]
         connection.executemany(DELETE_CITATION, stale)
 
-        incomplete = incomplete | set([e[0] for e in connection.execute(SELECT_ALL_CITATIONS).fetchall()])
+        incomplete = incomplete | set(
+            [e[0] for e in connection.execute(SELECT_ALL_CITATIONS).fetchall()]
+        )
 
     incomplete = list(incomplete)
 
