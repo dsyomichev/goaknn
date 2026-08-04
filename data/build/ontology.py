@@ -8,8 +8,6 @@ from typing import Generator
 
 from lib.util.execute import execute
 
-# Script Configuration
-
 ROOT_DIRECTORY = Path(__file__, "../..").resolve()
 
 CACHE_DIRECTORY = ROOT_DIRECTORY.joinpath("data/cache").resolve()
@@ -19,8 +17,6 @@ SOURCE_FILE = ROOT_DIRECTORY.joinpath("data/cache/go-basic.json").resolve()
 
 BATCH_SIZE = 2000
 CHUNK_SIZE = 65536
-
-# SQL Queries
 
 CREATE_ONTOLOGY_TABLE = """
     CREATE TABLE IF NOT EXISTS ontology (
@@ -45,8 +41,6 @@ DELETE_TERM = """
     DELETE FROM ontology
     WHERE id = ?
 """
-
-# Regex Patterns
 
 EXTRACT_ID = r"http:\/\/purl\.obolibrary\.org\/obo\/GO_(\d{7})"
 

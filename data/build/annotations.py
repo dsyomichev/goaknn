@@ -9,8 +9,6 @@ from typing import Generator
 
 from lib.util.execute import execute
 
-# Script Configuration
-
 ROOT_DIRECTORY = Path(__file__, "../..").resolve()
 CACHE_DIRECTORY = ROOT_DIRECTORY.joinpath("data/cache").resolve()
 
@@ -19,8 +17,6 @@ SOURCE_FILE = ROOT_DIRECTORY.joinpath("data/cache/goa_uniprot_all.gaf.gz").resol
 
 BATCH_SIZE = 20000
 CHUNK_SIZE = 65536
-
-# SQL Queries
 
 CREATE_ANNOTATIONS_TABLE = """
     CREATE TABLE IF NOT EXISTS annotations (
@@ -48,8 +44,6 @@ DELETE_ANNOTATION = """
     DELETE FROM annotations
     WHERE term_id = ? AND citation_id = ?
 """
-
-# Regex Patterns
 
 EXTRACT_TERM_ID = r"GO:(\d{7})"
 

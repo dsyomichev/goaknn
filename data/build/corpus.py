@@ -9,8 +9,6 @@ from requests import Response
 
 from lib.util.execute import execute
 
-# Script Configuration
-
 ROOT_DIRECTORY = Path(__file__, "../..").resolve()
 
 PROJECT_NAME = os.environ.get("NCBI_PROJECT_NAME")
@@ -24,8 +22,6 @@ SOURCE_DIRECTORY = ROOT_DIRECTORY.joinpath("data/cache/efetch").resolve()
 BATCH_SIZE = 200
 REQUEST_INTERVAL = 1 / 10 if API_KEY else 1 / 3
 MAX_RETRIES = 3
-
-# Database Queries
 
 CREATE_CORPUS_TABLE = """
     CREATE TABLE IF NOT EXISTS corpus (

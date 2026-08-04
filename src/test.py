@@ -20,15 +20,13 @@ from lib.BertVectorizer import BertVectorizer
 
 warnings.filterwarnings("ignore")
 
-# Script Configuration
-
 ROOT_DIRECTORY = Path(__file__, "../..").resolve()
 CACHE_DIRECTORY = ROOT_DIRECTORY.joinpath("data/cache").resolve()
 
 PARAMETER_GRID: dict[str, list[Any]] = {
     "estimator__t_threshold": [0.0, 0.05, 0.1, 0.15, 0.2, 0.25],
     "estimator__w_exponent": [1, 2, 3, 4, 5],
-    "estimator__n_neighbors": [5, 10, 15, 20, 25],
+    "estimator__n_neighbors": [25, 50, 100, 200],
 }
 
 
