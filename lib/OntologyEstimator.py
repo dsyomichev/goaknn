@@ -2,10 +2,11 @@ from numpy import array, pad, iinfo, finfo, float64, int_
 from numpy.ma import masked_equal
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics import precision_recall_fscore_support  # type: ignore
+from sklearn.preprocessing import MultiLabelBinarizer
 from itertools import chain
 
 from sklearn.base import BaseEstimator
-from typing import Any, Self, Generator
+from typing import Any, Self
 from numpy import ndarray, dtype
 from numpy.ma import masked_array
 from scipy.sparse import sparray  # type: ignore
@@ -22,7 +23,7 @@ class OntologyEstimator(BaseEstimator):
         self.t_threshold = t_threshold
         self.w_exponent = w_exponent
 
-        self.estimator = NearestNeighbors(metric="cosine", **kwargs)
+        self.kwargs = kwargs
 
     def fit(
         self,
@@ -30,6 +31,11 @@ class OntologyEstimator(BaseEstimator):
         Z: masked_array[tuple[int, int], dtype[int_]],
     ) -> Self:
         self.Z = Z
+
+        self.estimator = NearestNeighbors(
+            metric="cosine",
+            **self.kwargs,
+        )
 
         self.estimator.fit(X)  # type: ignore
 
@@ -69,7 +75,7 @@ class OntologyEstimator(BaseEstimator):
             )
 
             ordered = [
-                (term_id, score / aggregate)
+                (term_id, score)
                 for (term_id, score) in ordered
                 if score >= self.t_threshold
             ]
@@ -90,8 +96,8 @@ class OntologyEstimator(BaseEstimator):
         Z_: masked_array[tuple[int, int], dtype[int_]],
     ) -> tuple[float, float, float]:
 
-        expected: Generator[ndarray[tuple[int], dtype[int_]]] = (z.compressed() for z in Z)  # type: ignore
-        predicted: Generator[ndarray[tuple[int], dtype[int_]]] = (z_.compressed() for z_ in Z_)  # type: ignore
+        expected: list[ndarray[tuple[int], dtype[int_]]] = [z.compressed() for z in Z]  # type: ignore
+        predicted: list[ndarray[tuple[int], dtype[int_]]] = [z_.compressed() for z_ in Z_]  # type: ignore
 
         binarizer = MultiLabelBinarizer(sparse_output=True).fit(chain(predicted, expected))  # type: ignore
 

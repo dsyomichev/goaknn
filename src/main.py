@@ -7,7 +7,6 @@ from lib.util.execute import execute
 from lib.util.tokenizer import tokenizer
 from lib.util.stop_words import stop_words
 from lib.DatabaseClient import DatabaseClient
-
 from lib.OntologyEstimator import OntologyEstimator
 
 warnings.filterwarnings("ignore")

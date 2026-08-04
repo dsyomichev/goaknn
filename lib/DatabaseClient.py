@@ -1,6 +1,7 @@
 from numpy import array, pad, iinfo, float64, int_
+from numpy import arange, setdiff1d, unique
 from numpy.ma import masked_equal
-from itertools import groupby
+from itertools import chain, groupby
 from scipy.sparse import coo_array  # type: ignore
 
 from sqlite3 import Connection
@@ -216,7 +217,14 @@ class DatabaseClient:
 
         translation = coo_array(X_)
 
-        for i, j, value in zip(translation.row, translation.col, translation.data):  # type: ignore
+        empty = setdiff1d(arange(y.shape[0]), unique(translation.row))  # type: ignore
+
+        entries: chain[tuple[int_, int_, float64]] = chain(
+            zip(translation.row, translation.col, translation.data),  # type: ignore
+            ((int_(i), int_(0), float64(0.0)) for i in empty),
+        )
+
+        for i, j, value in entries:  # type: ignore
             batch.append((y[i].item(), j.item(), value.item()))  # type: ignore
 
             if len(batch) >= BATCH_SIZE:
