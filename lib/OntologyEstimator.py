@@ -1,5 +1,5 @@
 from numpy import array, pad, iinfo, finfo, float64, int_
-from numpy.ma import masked_equal
+from numpy.ma import masked_equal, masked_values
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics import precision_recall_fscore_support  # type: ignore
 from sklearn.preprocessing import MultiLabelBinarizer
@@ -16,23 +16,35 @@ class OntologyEstimator(BaseEstimator):
 
     def __init__(
         self,
+        n_neighbors: int = 5,
         t_threshold: float = 0.0,
         w_exponent: int = 1,
+        n_jobs: int | None = None,
         **kwargs: Any,
     ) -> None:
+        self.n_neighbors = n_neighbors
         self.t_threshold = t_threshold
         self.w_exponent = w_exponent
+        self.n_jobs = n_jobs
 
         self.kwargs = kwargs
+
+    def __sklearn_is_fitted__(self) -> bool:
+        return hasattr(self, "estimator")
 
     def fit(
         self,
         X: ndarray[tuple[int, int], dtype[float64]] | sparray,
-        Z: masked_array[tuple[int, int], dtype[int_]],
+        Z: (
+            masked_array[tuple[int, int], dtype[int_]]
+            | ndarray[tuple[int, int], dtype[int_]]
+        ),
     ) -> Self:
-        self.Z = Z
+        self.Z = masked_equal(Z, iinfo(int_).min)
 
         self.estimator = NearestNeighbors(
+            n_neighbors=self.n_neighbors,
+            n_jobs=self.n_jobs,
             metric="cosine",
             **self.kwargs,
         )
@@ -88,7 +100,7 @@ class OntologyEstimator(BaseEstimator):
         Z_ = [pad(z, (0, width - len(z)), constant_values=iinfo(int_).min) for z in Z_]  # type: ignore
         T = [pad(t, (0, width - len(t)), constant_values=finfo(float64).min) for t in T]  # type: ignore
 
-        return masked_equal(Z_, iinfo(int_).min), masked_equal(T, finfo(float64).min)
+        return masked_equal(Z_, iinfo(int_).min), masked_values(T, finfo(float64).min)
 
     def evaluate(
         self,
@@ -113,10 +125,13 @@ class OntologyEstimator(BaseEstimator):
     def score(
         self,
         X_: ndarray[tuple[int, int], dtype[float64]] | sparray,
-        Z: masked_array[tuple[int, int], dtype[int_]],
+        Z: (
+            masked_array[tuple[int, int], dtype[int_]]
+            | ndarray[tuple[int, int], dtype[int_]]
+        ),
     ) -> float:
         Z_, _ = self.predict(X_)
 
-        _, _, fscore = self.evaluate(Z, Z_)
+        _, _, fscore = self.evaluate(masked_equal(Z, iinfo(int_).min), Z_)
 
         return fscore
