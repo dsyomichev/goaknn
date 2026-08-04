@@ -1,9 +1,11 @@
 from numpy import array, pad, iinfo, finfo, float64, int_
 from numpy.ma import masked_equal
 from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics import precision_recall_fscore_support  # type: ignore
+from itertools import chain
 
 from sklearn.base import BaseEstimator
-from typing import Any, Self
+from typing import Any, Self, Generator
 from numpy import ndarray, dtype
 from numpy.ma import masked_array
 from scipy.sparse import sparray  # type: ignore
@@ -15,15 +17,12 @@ class OntologyEstimator(BaseEstimator):
         self,
         t_threshold: float = 0.0,
         w_exponent: int = 1,
-        n_neighbors: int = 5,
         **kwargs: Any,
     ) -> None:
         self.t_threshold = t_threshold
         self.w_exponent = w_exponent
 
-        self.estimator = NearestNeighbors(
-            n_neighbors=n_neighbors, metric="cosine", **kwargs
-        )
+        self.estimator = NearestNeighbors(metric="cosine", **kwargs)
 
     def fit(
         self,
@@ -84,3 +83,34 @@ class OntologyEstimator(BaseEstimator):
         T = [pad(t, (0, width - len(t)), constant_values=finfo(float64).min) for t in T]  # type: ignore
 
         return masked_equal(Z_, iinfo(int_).min), masked_equal(T, finfo(float64).min)
+
+    def evaluate(
+        self,
+        Z: masked_array[tuple[int, int], dtype[int_]],
+        Z_: masked_array[tuple[int, int], dtype[int_]],
+    ) -> tuple[float, float, float]:
+
+        expected: Generator[ndarray[tuple[int], dtype[int_]]] = (z.compressed() for z in Z)  # type: ignore
+        predicted: Generator[ndarray[tuple[int], dtype[int_]]] = (z_.compressed() for z_ in Z_)  # type: ignore
+
+        binarizer = MultiLabelBinarizer(sparse_output=True).fit(chain(predicted, expected))  # type: ignore
+
+        precision, recall, fscore, _ = precision_recall_fscore_support(
+            binarizer.transform(expected),  # type: ignore
+            binarizer.transform(predicted),  # type: ignore
+            average="samples",
+            zero_division=0,
+        )
+
+        return precision, recall, fscore  # type: ignore
+
+    def score(
+        self,
+        X_: ndarray[tuple[int, int], dtype[float64]] | sparray,
+        Z: masked_array[tuple[int, int], dtype[int_]],
+    ) -> float:
+        Z_, _ = self.predict(X_)
+
+        _, _, fscore = self.evaluate(Z, Z_)
+
+        return fscore
