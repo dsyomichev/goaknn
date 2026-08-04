@@ -82,6 +82,10 @@ SELECT_VECTORIZATIONS = """
 
 SELECT_ANNOTATIONS = """
     SELECT citation_id, term_id FROM annotations
+    WHERE citation_id in (
+        SELECT id FROM corpus
+        WHERE content IS NOT NULL
+    )
     ORDER BY citation_id ASC
 """
 
