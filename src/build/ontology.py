@@ -5,8 +5,8 @@ from pathlib import Path
 
 from src.db.util.execute import execute
 
-ROOT_DIRECTORY = Path(__file__, "../../..").resolve()
-SOURCE_FILE = Path(ROOT_DIRECTORY, "data/source/go-basic.json").resolve()
+ROOT_DIRECTORY = Path(__file__, "../..").resolve()
+SOURCE_FILE = ROOT_DIRECTORY.joinpath("data/source/go-basic.json").resolve()
 
 BATCH_SIZE = 2000
 

@@ -7,9 +7,6 @@ from xml.etree import ElementTree
 
 from src.db.util.execute import execute
 
-ROOT_DIRECTORY = Path(__file__, "../..").resolve()
-SOURCE_DIRECTORY = Path(ROOT_DIRECTORY, "data/source/efetch")
-
 PROJECT_NAME = os.environ.get("NCBI_PROJECT_NAME")
 PROJECT_EMAIL = os.environ.get("NCBI_PROJECT_EMAIL")
 API_KEY = os.environ.get("NCBI_API_KEY")

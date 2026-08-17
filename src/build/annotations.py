@@ -5,8 +5,8 @@ from pathlib import Path
 
 from src.db.util.execute import execute
 
-ROOT_DIRECTORY = Path(__file__, "../../..").resolve()
-SOURCE_FILE = Path(ROOT_DIRECTORY, "data/source/goa_uniprot_all.gaf.gz").resolve()
+ROOT_DIRECTORY = Path(__file__, "../..").resolve()
+SOURCE_FILE = ROOT_DIRECTORY.joinpath("data/source/goa_uniprot_all.gaf.gz").resolve()
 
 BATCH_SIZE = 100000
 
