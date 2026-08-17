@@ -1,25 +1,24 @@
-from numpy import array, pad, iinfo, float64, int_
-from numpy import arange, setdiff1d, unique
-from numpy.ma import masked_equal
-from itertools import chain, groupby
-from scipy.sparse import coo_array  # type: ignore
+import numpy
+import itertools
 
-from sqlite3 import Connection
-from scipy.sparse import sparray  # type: ignore
-from numpy import ndarray, dtype
-from numpy.ma import masked_array
-from collections.abc import Iterable
-
-# Script Configuration
+from numpy import float64, int_
+from scipy.sparse import coo_array
 
 BATCH_SIZE = 20000
-
-# SQL Queries
 
 SELECT_CITATIONS = """
     SELECT id, content FROM corpus
     WHERE content IS NOT NULL
     ORDER BY id ASC
+"""
+
+SELECT_ANNOTATIONS = """
+    SELECT citation_id, term_id FROM annotations
+    WHERE citation_id in (
+        SELECT id FROM corpus
+        WHERE content IS NOT NULL
+    )
+    ORDER BY citation_id ASC
 """
 
 DROP_VOCABULARY_TABLE = """
@@ -38,9 +37,8 @@ CREATE_VOCABULARY_TABLE = """
 INSERT_TOKEN = """
     INSERT INTO vocabulary (token, position, value)
     VALUES (?, ?, ?)
-    ON CONFLICT (token, position)
-    DO UPDATE SET
-        value = excluded.value
+    ON CONFLICT (token, position) DO UPDATE
+    SET value = excluded.value
 """
 
 SELECT_TOKENS = """
@@ -61,19 +59,15 @@ CREATE_VECTORIZATIONS_TABLE = """
         id INTEGER NOT NULL,
         position INTEGER NOT NULL,
         value FLOAT NOT NULL,
-        PRIMARY KEY (id, position),
-        FOREIGN KEY (id) REFERENCES corpus (id),
-        FOREIGN KEY (position) REFERENCES vocabulary (position)
-
+        PRIMARY KEY (id, position)
     )
 """
 
 INSERT_VECTORIZATION = """
     INSERT INTO vectorizations (id, position, value)
     VALUES (?, ?, ?)
-    ON CONFLICT (id, position)
-    DO UPDATE SET
-        value = excluded.value
+    ON CONFLICT (id, position) DO UPDATE
+    SET value = excluded.value
 """
 
 SELECT_VECTORIZATIONS = """
@@ -81,159 +75,109 @@ SELECT_VECTORIZATIONS = """
     ORDER BY id ASC
 """
 
-SELECT_ANNOTATIONS = """
-    SELECT citation_id, term_id FROM annotations
-    WHERE citation_id in (
-        SELECT id FROM corpus
-        WHERE content IS NOT NULL
-    )
-    ORDER BY citation_id ASC
-"""
-
 
 class DatabaseClient:
 
-    def __init__(
-        self,
-        connection: Connection,
-    ) -> None:
+    def __init__(self, connection):
         self.connection = connection
 
-    def get_citations(
-        self,
-    ) -> tuple[Iterable[str], ndarray[tuple[int], dtype[int_]]]:
+    def get_citations(self):
         citations = self.connection.execute(SELECT_CITATIONS)
 
-        X: list[str] = []
-        y: list[int] = []
+        contents, ids = [], []
 
-        for id, body in citations:
-            X.append(body)
-            y.append(id)
+        for id, content in citations:
+            contents.append(content)
+            ids.append(id)
 
-        return X, array(y, dtype=int_)
+        return contents, numpy.array(ids, dtype=int_)
 
-    def get_annotations(
-        self,
-    ) -> tuple[
-        ndarray[tuple[int], dtype[int_]], masked_array[tuple[int, int], dtype[int_]]
-    ]:
-        y: list[int] = []
-        Z: list[list[int]] = []  # type: ignore
+    def get_annotations(self):
+        citation_ids, term_ids = [], []
 
-        cursor = self.connection.execute(SELECT_ANNOTATIONS)
+        annotations = self.connection.execute(SELECT_ANNOTATIONS)
 
-        width = 0
-
-        for citation_id, group in groupby(cursor, key=lambda item: item[0]):
-            z: list[int] = []
+        for citation_id, group in itertools.groupby(annotations, key=lambda item: item[0]):
+            annotation = []
 
             for _, term_id in group:
-                z.append(term_id)
+                annotation.append(term_id)
 
-            y.append(citation_id)
-            Z.append(z)  # type: ignore
+            citation_ids.append(citation_id)
+            term_ids.append(numpy.array(annotation, dtype=int_))
 
-            width = len(z) if len(z) > width else width
+        return numpy.array(citation_ids, dtype=int_), term_ids
 
-        Z: list[ndarray[tuple[int], dtype[int_]]] = [pad(z, (0, width - len(z)), constant_values=iinfo(int_).min) for z in Z]  # type: ignore
-
-        return array(y, dtype=int_), masked_equal(Z, iinfo(int_).min)
-
-    def get_vocabulary(
-        self,
-    ) -> tuple[dict[str, int], ndarray[tuple[int], dtype[float64]]]:
-        vocabulary: dict[str, int] = {}
-        idf: list[float] = []
+    def get_vocabulary(self):
+        vocabulary = {}
+        idf = []
 
         for token, position, value in self.connection.execute(SELECT_TOKENS):
             vocabulary[token] = position
             idf.append(value)
 
-        return vocabulary, array(idf, dtype=float64)
+        return vocabulary, numpy.array(idf, dtype=float64)
 
-    def set_vocabulary(
-        self,
-        vocabulary: dict[str, int],
-        idf: ndarray[tuple[int], dtype[float64]],
-    ) -> None:
+    def set_vocabulary(self, vocabulary, idf):
         self.connection.execute(DROP_VOCABULARY_TABLE)
         self.connection.execute(CREATE_VOCABULARY_TABLE)
 
-        batch: list[tuple[str, int, float]] = []
+        batch = []
 
-        for token, position in vocabulary.items():  # type: ignore
-            batch.append((token, position, idf[position].item()))  # type: ignore
+        for token, position in vocabulary.items():
+            batch.append((token, position, float(idf[position])))
 
             if len(batch) > BATCH_SIZE:
                 self.connection.executemany(INSERT_TOKEN, batch)
-
                 self.connection.commit()
+
                 batch.clear()
 
         if batch:
             self.connection.executemany(INSERT_TOKEN, batch)
-
             self.connection.commit()
-            batch.clear()
 
-    def get_vectorizations(
-        self,
-    ) -> tuple[
-        sparray,
-        ndarray[tuple[int], dtype[int_]],
-    ]:
-        row: list[int] = []
-        col: list[int] = []
-        data: list[float] = []
+    def get_vectorizations(self):
+        row = []
+        col = []
+        val = []
+        citation_ids = []
 
-        y: list[int] = []
+        vectorizations = self.connection.execute(SELECT_VECTORIZATIONS)
 
-        cursor = self.connection.execute(SELECT_VECTORIZATIONS)
-
-        for i, (id, group) in enumerate(groupby(cursor, key=lambda item: item[0])):
+        for i, (id, group) in enumerate(itertools.groupby(vectorizations, key=lambda item: item[0])):
             for _, position, value in group:
                 row.append(i)
                 col.append(position)
-                data.append(value)
+                val.append(value)
 
-            y.append(id)
+            citation_ids.append(id)
 
         count = self.connection.execute(SELECT_TOKEN_COUNT).fetchone()[0]
+        citation_vectors = coo_array((val, (row, col)), dtype=float64, shape=(len(citation_ids), count)).tocsr()
+        return citation_vectors, numpy.array(citation_ids, dtype=int_)
 
-        return coo_array(
-            (data, (row, col)), dtype=float64, shape=(len(y), count)
-        ).tocsr(), array(y, dtype=int_)
-
-    def set_vectorizations(
-        self,
-        X_: sparray,
-        y: ndarray[tuple[int], dtype[int_]],
-    ) -> None:
+    def set_vectorizations(self, citation_vectors, citation_ids):
         self.connection.execute(DROP_VECTORIZATIONS_TABLE)
         self.connection.execute(CREATE_VECTORIZATIONS_TABLE)
 
-        batch: list[tuple[int, int, float]] = []
+        ijv = coo_array(citation_vectors)
 
-        translation = coo_array(X_)
+        empty_idxs = numpy.setdiff1d(numpy.arange(citation_ids.shape[0]), ijv.row)
+        nonzero = [(int(citation_ids[i]), int(j), float(v)) for i, j, v in zip(ijv.row, ijv.col, ijv.data)]
+        missing = [(int(citation_ids[i]), 0, 0.0) for i in empty_idxs]
 
-        empty = setdiff1d(arange(y.shape[0]), unique(translation.row))  # type: ignore
+        batch = []
 
-        entries: chain[tuple[int_, int_, float64]] = chain(
-            zip(translation.row, translation.col, translation.data),  # type: ignore
-            ((int_(i), int_(0), float64(0.0)) for i in empty),
-        )
-
-        for i, j, value in entries:  # type: ignore
-            batch.append((y[i].item(), j.item(), value.item()))  # type: ignore
+        for id, position, value in [*nonzero, *missing]:
+            batch.append((id, position, value))
 
             if len(batch) >= BATCH_SIZE:
                 self.connection.executemany(INSERT_VECTORIZATION, batch)
-
                 self.connection.commit()
+
                 batch.clear()
 
         if batch:
             self.connection.executemany(INSERT_VECTORIZATION, batch)
-
             self.connection.commit()

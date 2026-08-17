@@ -1,4 +1,5 @@
 import warnings
+import numpy
 
 from sqlite3 import Connection
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -20,38 +21,25 @@ def main(connection: Connection):
     client = DatabaseClient(connection)
 
     transformer = TfidfVectorizer(tokenizer=tokenizer, stop_words=stop_words)
-    estimator = OntologyEstimator(
-        t_threshold=0.0, w_exponent=3, n_neighbors=5, n_jobs=-1
-    )
+    estimator = OntologyEstimator(n_neighbors=5, n_labels=5, n_jobs=-1)
 
     vocabulary, idf = client.get_vocabulary()
-    X_, _ = client.get_vectorizations()
-    _, Z = client.get_annotations()
 
     transformer.vocabulary_ = vocabulary
-    transformer.fixed_vocabulary_ = False
     transformer.idf_ = idf
 
-    estimator.fit(X_, Z)
+    citation_vectors, vector_citation_ids = client.get_vectorizations()
+    annotation_citation_ids, citation_annotations = client.get_annotations()
 
-    predictions, scores = estimator.predict(transformer.transform([TEST_STRING]))  # type: ignore
+    intersection_idxs = numpy.nonzero(numpy.isin(vector_citation_ids, annotation_citation_ids))[0]
+    avail_citation_vectors = citation_vectors[intersection_idxs]
+    avail_citation_annot = [citation_annotations[i] for i in intersection_idxs]
+
+    estimator.fit(avail_citation_vectors, avail_citation_annot)
+
+    predictions, scores = estimator.predict(transformer.transform([TEST_STRING]))
 
     print(predictions, scores)
-
-
-"""
-    X, y = client.get_citations()
-
-    vectorizer = TfidfVectorizer(tokenizer=tokenizer, stop_words=stop_words, min_df=5)
-
-    client.get_vectorizer(vectorizer)
-
-    X_: sparray = vectorizer.transform(X)  # type: ignore
-
-    estimator.fit(X_, y)
-
-    client.set_vectorizations(estimator)
-"""
 
 
 if __name__ == "__main__":

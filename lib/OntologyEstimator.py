@@ -1,5 +1,5 @@
 import numpy
-import sklearn.metrics
+import sklearn
 
 from sklearn.base import BaseEstimator
 from sklearn.neighbors import NearestNeighbors
@@ -8,8 +8,9 @@ from sklearn.preprocessing import MultiLabelBinarizer
 
 class OntologyEstimator(BaseEstimator):
 
-    def __init__(self, n_neighbors, n_jobs):
+    def __init__(self, n_neighbors, n_labels=None, n_jobs=-1):
         self.estimator = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=n_jobs, metric="cosine")
+        self.n_labels = n_labels
 
     def fit(self, X_train, y_train):
         self.y_train = y_train
@@ -22,19 +23,22 @@ class OntologyEstimator(BaseEstimator):
         distances, indicies = self.estimator.kneighbors(X_test)
         y_pred, sim_pred = [], []
 
+        print(self.n_labels)
+
         for pred_distances, pred_indicies in zip(distances, indicies):
             result = {}
 
             similarities = 1 - pred_distances
 
             for i, similarity in zip(pred_indicies, similarities):
-                for label in self.y[i]:
+                for label in self.y_train[i]:
                     result[label] = result.get(label, 0) + similarity
 
-            sorted_result = sorted(result.items(), lambda item: item[1], reverse=True)
+            sorted_result = sorted(result.items(), key=lambda item: item[1], reverse=True)
+            trunc_result = sorted_result if not self.n_labels else sorted_result[: self.n_labels]
 
-            y_pred.append([labels for (labels, _) in sorted_result])
-            sim_pred.append([similarity for (_, similarity) in sorted_result])
+            y_pred.append([labels for (labels, _) in trunc_result])
+            sim_pred.append([similarity for (_, similarity) in trunc_result])
 
         return y_pred, sim_pred
 
