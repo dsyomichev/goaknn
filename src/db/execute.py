@@ -1,8 +1,8 @@
 import sqlite3
 
 
-def execute(db_path, proxy, **kwargs):
-    connection = sqlite3.connect(db_path)
+def execute(path, proxy, **kwargs):
+    connection = sqlite3.connect(path)
 
     try:
         proxy(connection, **kwargs)
