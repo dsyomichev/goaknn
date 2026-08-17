@@ -20,17 +20,15 @@ class OntologyEstimator(BaseEstimator):
         return self
 
     def predict(self, X_test):
-        distances, indicies = self.estimator.kneighbors(X_test)
+        distances, indices = self.estimator.kneighbors(X_test)
         y_pred, sim_pred = [], []
 
-        print(self.n_labels)
-
-        for pred_distances, pred_indicies in zip(distances, indicies):
+        for pred_distances, pred_indices in zip(distances, indices):
             result = {}
 
             similarities = 1 - pred_distances
 
-            for i, similarity in zip(pred_indicies, similarities):
+            for i, similarity in zip(pred_indices, similarities):
                 for label in self.y_train[i]:
                     result[label] = result.get(label, 0) + similarity
 

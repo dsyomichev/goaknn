@@ -1,7 +1,6 @@
 import numpy
 import itertools
 
-from numpy import float64, int_
 from scipy.sparse import coo_array
 
 BATCH_SIZE = 20000
@@ -47,7 +46,7 @@ SELECT_TOKENS = """
 """
 
 SELECT_TOKEN_COUNT = """
-    SELECT COUNT(*) FROM vocabulary
+    SELECT COUNT(token) FROM vocabulary
 """
 
 DROP_VECTORIZATIONS_TABLE = """
@@ -90,7 +89,7 @@ class DatabaseClient:
             contents.append(content)
             ids.append(id)
 
-        return contents, numpy.array(ids, dtype=int_)
+        return contents, numpy.array(ids)
 
     def get_annotations(self):
         citation_ids, term_ids = [], []
@@ -104,9 +103,9 @@ class DatabaseClient:
                 annotation.append(term_id)
 
             citation_ids.append(citation_id)
-            term_ids.append(numpy.array(annotation, dtype=int_))
+            term_ids.append(numpy.array(annotation))
 
-        return numpy.array(citation_ids, dtype=int_), term_ids
+        return numpy.array(citation_ids), term_ids
 
     def get_vocabulary(self):
         vocabulary = {}
@@ -116,7 +115,7 @@ class DatabaseClient:
             vocabulary[token] = position
             idf.append(value)
 
-        return vocabulary, numpy.array(idf, dtype=float64)
+        return vocabulary, numpy.array(idf)
 
     def set_vocabulary(self, vocabulary, idf):
         self.connection.execute(DROP_VOCABULARY_TABLE)
@@ -154,8 +153,8 @@ class DatabaseClient:
             citation_ids.append(id)
 
         count = self.connection.execute(SELECT_TOKEN_COUNT).fetchone()[0]
-        citation_vectors = coo_array((val, (row, col)), dtype=float64, shape=(len(citation_ids), count)).tocsr()
-        return citation_vectors, numpy.array(citation_ids, dtype=int_)
+        citation_vectors = coo_array((val, (row, col)), shape=(len(citation_ids), count)).tocsr()
+        return citation_vectors, numpy.array(citation_ids)
 
     def set_vectorizations(self, citation_vectors, citation_ids):
         self.connection.execute(DROP_VECTORIZATIONS_TABLE)
