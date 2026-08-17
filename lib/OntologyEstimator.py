@@ -1,137 +1,72 @@
-from numpy import array, pad, iinfo, finfo, float64, int_
-from numpy.ma import masked_equal, masked_values
-from sklearn.neighbors import NearestNeighbors
-from sklearn.metrics import precision_recall_fscore_support  # type: ignore
-from sklearn.preprocessing import MultiLabelBinarizer
-from itertools import chain
+import numpy
+import sklearn.metrics
 
 from sklearn.base import BaseEstimator
-from typing import Any, Self
-from numpy import ndarray, dtype
-from numpy.ma import masked_array
-from scipy.sparse import sparray  # type: ignore
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import MultiLabelBinarizer
 
 
 class OntologyEstimator(BaseEstimator):
 
-    def __init__(
-        self,
-        n_neighbors: int = 5,
-        t_threshold: float = 0.0,
-        w_exponent: int = 1,
-        n_jobs: int | None = None,
-        **kwargs: Any,
-    ) -> None:
-        self.n_neighbors = n_neighbors
-        self.t_threshold = t_threshold
-        self.w_exponent = w_exponent
-        self.n_jobs = n_jobs
+    def __init__(self, n_neighbors, n_jobs):
+        self.estimator = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=n_jobs, metric="cosine")
 
-        self.kwargs = kwargs
+    def fit(self, X_train, y_train):
+        self.y_train = y_train
 
-    def __sklearn_is_fitted__(self) -> bool:
-        return hasattr(self, "estimator")
-
-    def fit(
-        self,
-        X: ndarray[tuple[int, int], dtype[float64]] | sparray,
-        Z: (
-            masked_array[tuple[int, int], dtype[int_]]
-            | ndarray[tuple[int, int], dtype[int_]]
-        ),
-    ) -> Self:
-        self.Z = masked_equal(Z, iinfo(int_).min)
-
-        self.estimator = NearestNeighbors(
-            n_neighbors=self.n_neighbors,
-            n_jobs=self.n_jobs,
-            metric="cosine",
-            **self.kwargs,
-        )
-
-        self.estimator.fit(X)  # type: ignore
+        self.estimator.fit(X_train)
 
         return self
 
-    def predict(
-        self,
-        X_: ndarray[tuple[int, int], dtype[float64]] | sparray,
-    ) -> tuple[
-        masked_array[tuple[int, int], dtype[int_]],
-        masked_array[tuple[int, int], dtype[float64]],
-    ]:
-        distances, indices = self.estimator.kneighbors(X_)  # type: ignore
+    def predict(self, X_test):
+        distances, indicies = self.estimator.kneighbors(X_test)
+        y_pred, sim_pred = [], []
 
-        Z_: list[ndarray[tuple[int, int], dtype[int_]]] = []
-        T: list[ndarray[tuple[int, int], dtype[float64]]] = []
+        for pred_distances, pred_indicies in zip(distances, indicies):
+            result = {}
 
-        width = 0
+            similarities = 1 - pred_distances
 
-        for distances_, indices_ in zip(distances, indices):
-            result: dict[int, float] = {}
+            for i, similarity in zip(pred_indicies, similarities):
+                for label in self.y[i]:
+                    result[label] = result.get(label, 0) + similarity
 
-            weights = (1 - distances_) ** self.w_exponent
+            sorted_result = sorted(result.items(), lambda item: item[1], reverse=True)
 
-            aggregate = weights.sum()
+            y_pred.append([labels for (labels, _) in sorted_result])
+            sim_pred.append([similarity for (_, similarity) in sorted_result])
 
-            for weight, term_ids_ in zip(weights, self.Z[indices_]):
-                for term_id in term_ids_.compressed():
-                    result[term_id] = (
-                        result[term_id] + weight if term_id in result else weight
-                    )
+        return y_pred, sim_pred
 
-            ordered = sorted(
-                ((term_id, score / aggregate) for (term_id, score) in result.items()),
-                key=lambda item: item[1],
-                reverse=True,
-            )
+    def evaluate(self, y_true, y_pred):
+        reciprocal_ranks = [0] * len(y_true)
 
-            ordered = [
-                (term_id, score)
-                for (term_id, score) in ordered
-                if score >= self.t_threshold
-            ]
+        for i, (labels_true, labels_pred) in enumerate(zip(y_true, y_pred)):
+            for j, label in enumerate(labels_pred):
+                if label in labels_true:
+                    reciprocal_ranks[i] = 1 / (j + 1)
 
-            Z_.append(array([term_id for (term_id, _) in ordered], dtype=int_))
-            T.append(array([score for (_, score) in ordered], dtype=float64))
+                    break
 
-            width = len(ordered) if len(ordered) > width else width
+        mrr = numpy.mean(reciprocal_ranks)
 
-        Z_ = [pad(z, (0, width - len(z)), constant_values=iinfo(int_).min) for z in Z_]  # type: ignore
-        T = [pad(t, (0, width - len(t)), constant_values=finfo(float64).min) for t in T]  # type: ignore
+        binarizer = MultiLabelBinarizer()
+        binarizer.fit([*y_true, *y_pred])
 
-        return masked_equal(Z_, iinfo(int_).min), masked_values(T, finfo(float64).min)
-
-    def evaluate(
-        self,
-        Z: masked_array[tuple[int, int], dtype[int_]],
-        Z_: masked_array[tuple[int, int], dtype[int_]],
-    ) -> tuple[float, float, float]:
-
-        expected: list[ndarray[tuple[int], dtype[int_]]] = [z.compressed() for z in Z]  # type: ignore
-        predicted: list[ndarray[tuple[int], dtype[int_]]] = [z_.compressed() for z_ in Z_]  # type: ignore
-
-        binarizer = MultiLabelBinarizer(sparse_output=True).fit(chain(predicted, expected))  # type: ignore
-
-        precision, recall, fscore, _ = precision_recall_fscore_support(
-            binarizer.transform(expected),  # type: ignore
-            binarizer.transform(predicted),  # type: ignore
-            average="samples",
-            zero_division=0,
+        recall = sklearn.metrics.recall_score(
+            binarizer.transform(y_true),
+            binarizer.transform(y_pred),
+            average="macro",
+            zero_division=0.0,
         )
 
-        return precision, recall, fscore  # type: ignore
+        fscore = 2 * (mrr * recall) / (mrr + recall)
 
-    def score(
-        self,
-        X_: ndarray[tuple[int, int], dtype[float64]] | sparray,
-        Z: (
-            masked_array[tuple[int, int], dtype[int_]]
-            | ndarray[tuple[int, int], dtype[int_]]
-        ),
-    ) -> float:
-        Z_, _ = self.predict(X_)
+        return fscore, mrr, recall
 
-        _, _, fscore = self.evaluate(masked_equal(Z, iinfo(int_).min), Z_)
+    def score(self, X_test, y_true):
+        y_pred = self.predict(X_test)
+
+        fscore, _, _ = self.evaluate(y_true, y_pred)
 
         return fscore
