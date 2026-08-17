@@ -1,50 +1,31 @@
-from torch import cuda, no_grad
-from numpy import array, float64
-from transformers import AutoModel, AutoTokenizer
+import numpy
 
+from transformers import AutoModel, AutoTokenizer
 from sklearn.base import BaseEstimator
-from collections.abc import Iterable
-from typing import Any, Self
-from numpy import ndarray, dtype
 
 
 class BertVectorizer(BaseEstimator):
 
-    def __init__(
-        self, model: str, device: str = "cuda" if cuda.is_available() else "cpu"
-    ) -> None:
-        self.tokenizer = AutoTokenizer.from_pretrained(model)  # type: ignore
-        self.model = AutoModel.from_pretrained(model).to(device).eval()  # type: ignore
+    def __init__(self, model_name):
+        self.model_name = model_name
 
-    def fit(
-        self,
-        X: Iterable[str],
-        y: Any = None,
-    ) -> Self:
+    def fit(self, X, y=None):
+        self.tokenizer_ = AutoTokenizer.from_pretrained(self.model_name)
+        self.model_ = AutoModel.from_pretrained(self.model_name).eval()
+
         return self
 
-    def transform(
-        self,
-        X: Iterable[str],
-    ) -> ndarray[tuple[int, int], dtype[float64]]:
-        result: list[ndarray[tuple[int], dtype[float64]]] = []
+    def transform(self, X):
+        result = []
 
         for sample in X:
+            tokens = self.tokenizer_(sample, return_tensors="pt", truncation=True)
+            output = self.model_(**tokens)
 
-            tokens = self.tokenizer(sample, return_tensors="pt", truncation=True).to(DEVICE_TYPE)  # type: ignore
+            vectors = output.last_hidden_state.squeeze(0)
+            result.append(vectors.numpy().mean(axis=0))
 
-            with no_grad():
-                output = self.model(**tokens)  # type: ignore
+        return numpy.array(result)
 
-            vectors = output.last_hidden_state.squeeze(0)  # type: ignore
-
-            result.append(vectors.cpu().numpy())  # type: ignore
-
-        return array(result, dtype=float64)
-
-    def fit_tranform(
-        self,
-        X: Iterable[str],
-        y: Any = None,
-    ) -> ndarray[tuple[int, int], dtype[float64]]:
+    def fit_transform(self, X, y=None):
         return self.fit(X, y).transform(X)
