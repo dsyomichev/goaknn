@@ -3,10 +3,10 @@ import re
 
 from pathlib import Path
 
-from src.db.util.execute import execute
+from src.db.execute import execute
 
-ROOT_DIRECTORY = Path(__file__, "../..").resolve()
-SOURCE_FILE = ROOT_DIRECTORY.joinpath("data/source/goa_uniprot_all.gaf.gz").resolve()
+ROOT_DIR = Path(__file__, "../../..").resolve()
+SOURCE_FILE = ROOT_DIR.joinpath("data/source/goa_uniprot_all.gaf.gz").resolve()
 
 BATCH_SIZE = 100000
 
@@ -49,7 +49,7 @@ def read(path):
                 continue
 
             try:
-                goid = int(result.group(1))
+                term_id = int(result.group(1))
             except:
                 continue
 
@@ -59,11 +59,11 @@ def read(path):
                 continue
 
             try:
-                pmid = int(result.group(1))
+                citation_id = int(result.group(1))
             except:
                 continue
 
-            yield goid, pmid, date
+            yield term_id, citation_id, date
 
 
 def main(connection):
@@ -81,7 +81,7 @@ def main(connection):
             batch.clear()
 
     if batch:
-        connection.execute(INSERT_ANNOTATION)
+        connection.executemany(INSERT_ANNOTATION, batch)
         connection.commit()
 
 

@@ -1,11 +1,11 @@
 import os
 import time
 import requests
+import re
 
-from pathlib import Path
 from xml.etree import ElementTree
 
-from src.db.util.execute import execute
+from src.db.execute import execute
 
 PROJECT_NAME = os.environ.get("NCBI_PROJECT_NAME")
 PROJECT_EMAIL = os.environ.get("NCBI_PROJECT_EMAIL")
@@ -15,11 +15,14 @@ REMOTE_ENDPOINT = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
 BATCH_SIZE = 200
 REQUEST_INTERVAL = 1 / 10 if API_KEY else 1 / 3
+MAX_RETRY = 3
+
+EXTRACT_WHITESPACE = r"^\s*$"
 
 CREATE_LITERATURE_TABLE = """
     CREATE TABLE IF NOT EXISTS corpus (
         id INTEGER PRIMARY KEY,
-        content TEXT
+        content TEXT NOT NULL
     )
 """
 
@@ -43,13 +46,13 @@ def parse(response):
     root = ElementTree.fromstring(response.content)
 
     for citation in root.findall("./PubmedArticle/MedlineCitation"):
-        pmid = citation.find("./PMID")
+        id = citation.find("./PMID")
 
-        if pmid is None or not pmid.text:
+        if id is None or id.text is None:
             continue
 
         try:
-            pmid = int(pmid.text)
+            id = int(id.text)
         except:
             continue
 
@@ -60,7 +63,12 @@ def parse(response):
 
         sections = [section.text for section in abstract.findall("AbstractText") if section.text is not None]
 
-        result[pmid] = "\n\n".join(sections)
+        content = "\n\n".join(sections)
+
+        if re.match(EXTRACT_WHITESPACE, content):
+            continue
+
+        result[id] = content
 
     return result
 
@@ -79,10 +87,17 @@ def fetch(batch):
 
     payload["id"] = ",".join(str(id) for id in batch)
 
-    response = requests.post(REMOTE_ENDPOINT, payload)
-    response.raise_for_status()
+    for i in range(MAX_RETRY):
+        try:
+            response = requests.post(REMOTE_ENDPOINT, payload)
+            response.raise_for_status()
 
-    return parse(response, batch)
+            return parse(response)
+        except:
+            if i == MAX_RETRY - 1:
+                raise
+
+            continue
 
 
 def main(connection):
@@ -90,17 +105,12 @@ def main(connection):
 
     incomplete = [id for (id,) in connection.execute(SELECT_INCOMPLETE).fetchall()]
 
-    previous = 0.0
+    l = len(incomplete)
 
     for i in range(0, len(incomplete), BATCH_SIZE):
         batch = incomplete[i : i + BATCH_SIZE]
 
-        remaining = REQUEST_INTERVAL + previous - time.monotonic()
-
-        if remaining > 0:
-            time.sleep(remaining)
-
-        previous = time.monotonic()
+        time.sleep(REQUEST_INTERVAL)
 
         result = fetch(batch)
 

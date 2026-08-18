@@ -26,7 +26,7 @@ class OntologyEstimator(BaseEstimator):
         for pred_distances, pred_indices in zip(distances, indices):
             result = {}
 
-            similarities = 1 - pred_distances
+            similarities = (1 - pred_distances) ** 3
 
             for i, similarity in zip(pred_indices, similarities):
                 for label in self.y_train[i]:

@@ -2,8 +2,8 @@ import sqlite3
 
 from pathlib import Path
 
-ROOT_DIRECTORY = Path(__file__, "../../..").resolve()
-DB_FILE = ROOT_DIRECTORY.joinpath("/data/database.db")
+ROOT_DIR = Path(__file__, "../../..").resolve()
+DB_FILE = ROOT_DIR.joinpath("data/base.db")
 
 
 def execute(proxy, **kwargs):

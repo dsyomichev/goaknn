@@ -1,46 +1,113 @@
-import warnings
-import numpy
+import sys
+import re
 
-from sqlite3 import Connection
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from lib.util.execute import execute
-from lib.util.tokenizer import tokenizer
-from lib.util.stop_words import stop_words
-from lib.DatabaseClient import DatabaseClient
 from lib.OntologyEstimator import OntologyEstimator
+from lib.BertVectorizer import BertVectorizer
+from lib.preprocess import tokenizer, stop_words
 
-warnings.filterwarnings("ignore")
+from src.db.DatabaseClient import DatabaseClient
+from src.db.execute import execute
+from src.build import ontology, annotations, corpus
+from src.parser import parser
+from src.output import output
 
-TEST_STRING = """
-Dihydrofolate reductase has been purified 40-fold to apparent homogeneity from a trimethoprim-resistant strain of Escherichia coli (RT 500) using a procedure that includes methotrexate affinity column chromatography. Determinations of the molecular weight of the enzyme based on its amino acid composition, sedimentation velocity, and sodium dodecyl sulfate gel electrophoresis gave values of 17680, 17470 and 18300, respectively. An aggregated form of the enzyme with a low specific activity can be separated from the monomer by gel filtration; treatment of the aggregate with mercaptoethanol or dithiothreitol results in an increase in enzymic activity and a regeneration of the monomer. Also, multiple molecular forms of the monomer have been detected by polyacrylamide gel electrophoresis. The unresolved enzyme exhibits two pH optima (pH 4.5 and pH 7.0) with dihydrofolate as a substrate. Highest activities are observed in buffers containing large organic cations. In 100 mM imidazolium chloride (pH 7), the specific activity is 47 mumol of dihydrofolate reduced per min per mg at 30 degrees. Folic acid also serves as a substrate with a single pH optimum of pH 4.5. At this pH the Km for folate is 16 muM, and the Vmax is 1/1000 of the rate observed with dihydrofolate as the substrate. Monovalent cations (Na+, K+, Rb+, and Cs+) inhibit dihydrofolate reductase; at a given ionic strength the degree of inhibition is a function of the ionic radius of the cation. Divalent cations are more potent inhibitors; the I50 of BaCl2 is 250 muM, as compared to 125 mM for KCl. Anions neither inhibit nor activate the enzyme.
-"""
+BATCH_SIZE = 200
+
+MODEL_NAME = "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"
+
+BUILD_ORDER = {"ontology": 0, "annotations": 1, "corpus": 2}
+BUILD_MAPPING = {"ontology": ontology.main, "annotations": annotations.main, "corpus": corpus.main}
+
+STDIN_DOC_SEP = r"\n\s*\n"
+
+N_NEIGHBORS = 200
+N_LABELS = 20
+N_JOBS = -1
 
 
-def main(connection: Connection):
+def proxy(connection):
+    args = parser.parse_args(sys.argv[1:])
+
     client = DatabaseClient(connection)
 
-    transformer = TfidfVectorizer(tokenizer=tokenizer, stop_words=stop_words)
-    estimator = OntologyEstimator(n_neighbors=5, n_labels=5, n_jobs=-1)
+    if args.command == "build":
+        if not args.target:
+            args.target = ["ontology", "annotations", "corpus"]
 
-    vocabulary, idf = client.get_vocabulary()
+        args.target = sorted(args.target, key=lambda item: BUILD_ORDER[item])
 
-    transformer.vocabulary_ = vocabulary
-    transformer.idf_ = idf
+        for table in args.target:
+            BUILD_MAPPING[table](connection)
 
-    citation_vectors, vector_citation_ids = client.get_vectorizations()
-    annotation_citation_ids, citation_annotations = client.get_annotations()
+        pass
+    if args.command == "index":
+        if args.method == "tfidf":
+            transformer = TfidfVectorizer(tokenizer=tokenizer, stop_words=stop_words, token_pattern=None)
 
-    intersection_idxs = numpy.nonzero(numpy.isin(vector_citation_ids, annotation_citation_ids))[0]
-    avail_citation_vectors = citation_vectors[intersection_idxs]
-    avail_citation_annot = [citation_annotations[i] for i in intersection_idxs]
+            contents, ids = client.get_citations()
 
-    estimator.fit(avail_citation_vectors, avail_citation_annot)
+            transformer.fit(contents, ids)
 
-    predictions, scores = estimator.predict(transformer.transform([TEST_STRING]))
+            client.delete_vocabulary()
+            client.set_vocabulary(transformer.vocabulary_, transformer.idf_)
 
-    print(predictions, scores)
+            vectors = transformer.transform(contents)
+
+            client.delete_vectorizations()
+            client.set_vectorizations(vectors, ids)
+        else:
+            transformer = BertVectorizer(model_name=MODEL_NAME).fit([])
+
+            contents, ids = client.get_citations()
+
+            for i in range(0, len(ids), BATCH_SIZE):
+                batch_ids = ids[i : i + BATCH_SIZE]
+                batch_contents = contents[i : i + BATCH_SIZE]
+
+                batch_vectors = transformer.transform(batch_contents)
+
+                client.set_embeddings(batch_vectors, batch_ids)
+
+    if args.command == "query":
+
+        if not args.target:
+            test_inputs = re.split(STDIN_DOC_SEP, sys.stdin.read())
+            test_sanitized = [target.strip() for target in test_inputs]
+
+            args.target = [target for target in test_sanitized if target]
+
+            if not args.target:
+                return
+
+        if args.method == "tfidf":
+            transformer = TfidfVectorizer(tokenizer=tokenizer, stop_words=stop_words, token_pattern=None)
+
+            vocabulary, idf = client.get_vocabulary()
+            vectors, ids = client.get_vectorizations()
+            _, annotations = client.get_annotations("vectorizations")
+
+            transformer.vocabulary_ = vocabulary
+            transformer.idf_ = idf
+        else:
+            transformer = BertVectorizer(model_name=MODEL_NAME).fit([])
+
+            vectors, ids = client.get_embeddings()
+            _, annotations = client.get_annotations("embeddings")
+
+        estimator = OntologyEstimator(n_neighbors=N_NEIGHBORS, n_labels=N_LABELS, n_jobs=N_JOBS)
+
+        estimator.fit(vectors, annotations)
+
+        test_vectors = transformer.transform(args.target)
+
+        pred_term_ids, pred_term_scores = estimator.predict(test_vectors)
+
+        term_label_mapping = client.get_terms()
+
+        output(pred_term_ids, pred_term_scores, term_label_mapping)
 
 
 if __name__ == "__main__":
-    execute(main)
+    execute(proxy)

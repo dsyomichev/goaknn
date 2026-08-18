@@ -14,4 +14,4 @@ def tokenizer(input):
     return [stemmer.stem(token) for token in tokens]
 
 
-stop_words = [tokenizer(word) for word in nltk.corpus.stopwords.words("english")]
+stop_words = [token for word in nltk.corpus.stopwords.words("english") for token in tokenizer(word)]
