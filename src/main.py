@@ -5,7 +5,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from lib.OntologyEstimator import OntologyEstimator
 from lib.BertVectorizer import BertVectorizer
-from lib.preprocess import tokenizer, stop_words
+from lib.preprocess import tokenize
 
 from src.db.DatabaseClient import DatabaseClient
 from src.db.execute import execute
@@ -27,7 +27,7 @@ N_LABELS = 20
 N_JOBS = -1
 
 
-def proxy(connection):
+def main(connection):
     args = parser.parse_args(sys.argv[1:])
 
     client = DatabaseClient(connection)
@@ -41,10 +41,9 @@ def proxy(connection):
         for table in args.target:
             BUILD_MAPPING[table](connection)
 
-        pass
     if args.command == "index":
         if args.method == "tfidf":
-            transformer = TfidfVectorizer(tokenizer=tokenizer, stop_words=stop_words, token_pattern=None)
+            transformer = TfidfVectorizer(tokenizer=tokenize, token_pattern=None)
 
             contents, ids = client.get_citations()
 
@@ -57,6 +56,7 @@ def proxy(connection):
 
             client.delete_vectorizations()
             client.set_vectorizations(vectors, ids)
+
         else:
             transformer = BertVectorizer(model_name=MODEL_NAME).fit([])
 
@@ -71,7 +71,6 @@ def proxy(connection):
                 client.set_embeddings(batch_vectors, batch_ids)
 
     if args.command == "query":
-
         if not args.target:
             test_inputs = re.split(STDIN_DOC_SEP, sys.stdin.read())
             test_sanitized = [target.strip() for target in test_inputs]
@@ -82,7 +81,7 @@ def proxy(connection):
                 return
 
         if args.method == "tfidf":
-            transformer = TfidfVectorizer(tokenizer=tokenizer, stop_words=stop_words, token_pattern=None)
+            transformer = TfidfVectorizer(tokenizer=tokenize, token_pattern=None)
 
             vocabulary, idf = client.get_vocabulary()
             vectors, ids = client.get_vectorizations()
@@ -90,6 +89,7 @@ def proxy(connection):
 
             transformer.vocabulary_ = vocabulary
             transformer.idf_ = idf
+
         else:
             transformer = BertVectorizer(model_name=MODEL_NAME).fit([])
 
@@ -110,4 +110,4 @@ def proxy(connection):
 
 
 if __name__ == "__main__":
-    execute(proxy)
+    execute(main)

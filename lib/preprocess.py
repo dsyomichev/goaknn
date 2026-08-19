@@ -1,4 +1,5 @@
 import nltk
+import functools
 
 from nltk.stem import PorterStemmer
 
@@ -9,9 +10,20 @@ stemmer = PorterStemmer()
 nltk.download("stopwords", quiet=True)
 
 
-def tokenizer(input):
-    tokens = nltk.regexp_tokenize(input, TOKEN_PATTERN)
-    return [stemmer.stem(token) for token in tokens]
+def normalize(text):
+    return text.replace("'", "").lower()
 
 
-stop_words = [token for word in nltk.corpus.stopwords.words("english") for token in tokenizer(word)]
+@functools.cache
+def stem(word):
+    return stemmer.stem(word)
+
+
+stop_words = {stem(normalize(word)) for word in nltk.corpus.stopwords.words("english")}
+
+
+def tokenize(text):
+    tokenized = nltk.regexp_tokenize(normalize(text), TOKEN_PATTERN)
+    stemmed = [stem(token) if token.isalpha() else token for token in tokenized]
+
+    return [token for token in stemmed if token not in stop_words]
