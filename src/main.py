@@ -9,7 +9,7 @@ from lib.preprocess import tokenize
 
 from src.db.DatabaseClient import DatabaseClient
 from src.db.execute import execute
-from src.build import ontology, annotations, corpus
+from src.build import terms, annotations, citations
 from src.parser import parser
 from src.output import output
 
@@ -17,8 +17,8 @@ BATCH_SIZE = 200
 
 MODEL_NAME = "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"
 
-BUILD_ORDER = {"ontology": 0, "annotations": 1, "corpus": 2}
-BUILD_MAPPING = {"ontology": ontology.main, "annotations": annotations.main, "corpus": corpus.main}
+BUILD_ORDER = {"terms": 0, "annotations": 1, "citations": 2}
+BUILD_MAPPING = {"terms": terms.main, "annotations": annotations.main, "citations": citations.main}
 
 STDIN_DOC_SEP = r"\n\s*\n"
 
@@ -34,7 +34,7 @@ def main(connection):
 
     if args.command == "build":
         if not args.target:
-            args.target = ["ontology", "annotations", "corpus"]
+            args.target = ["terms", "annotations", "citations"]
 
         args.target = sorted(args.target, key=lambda item: BUILD_ORDER[item])
 

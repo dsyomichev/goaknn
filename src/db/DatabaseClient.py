@@ -7,7 +7,7 @@ from scipy.sparse import coo_array
 BATCH_SIZE = 20000
 
 SELECT_CITATIONS = """
-    SELECT id, content FROM corpus
+    SELECT id, content FROM citations
     ORDER BY id ASC
 """
 
@@ -18,7 +18,7 @@ SELECT_ANNOTATIONS = """
 """
 
 SELECT_TERMS = """
-    SELECT id, label FROM ontology
+    SELECT id, label FROM terms
     ORDER BY id ASC
 """
 

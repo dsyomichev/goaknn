@@ -12,15 +12,15 @@ BATCH_SIZE = 2000
 
 EXTRACT_GOID = r"http:\/\/purl\.obolibrary\.org\/obo\/GO_(\d{7})"
 
-CREATE_ONTOLOGY_TABLE = """
-    CREATE TABLE IF NOT EXISTS ontology (
+CREATE_TERMS_TABLE = """
+    CREATE TABLE IF NOT EXISTS terms (
         id INTEGER PRIMARY KEY,
         label TEXT NOT NULL
     )
 """
 
 INSERT_TERM = """
-    INSERT INTO ontology (id, label)
+    INSERT INTO terms (id, label)
     VALUES (?, ?)
     ON CONFLICT (id) DO UPDATE
     SET label = excluded.label
@@ -53,7 +53,7 @@ def read(path):
 
 
 def main(connection):
-    connection.execute(CREATE_ONTOLOGY_TABLE)
+    connection.execute(CREATE_TERMS_TABLE)
 
     batch = []
 

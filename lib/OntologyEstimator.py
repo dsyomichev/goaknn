@@ -1,10 +1,6 @@
-import functools
-
 from sklearn.base import BaseEstimator
 from sklearn.neighbors import NearestNeighbors
 from sklearn.utils.validation import check_is_fitted, check_memory
-
-from lib.scoring import score_mrr, score_mar
 
 
 def evaluate(X_train, X_test, n_neighbors, n_jobs):
@@ -63,13 +59,3 @@ class OntologyEstimator(BaseEstimator):
             sim_pred.append([similarity for (_, similarity) in trunc_result])
 
         return y_pred, sim_pred
-
-    def score(self, X_test, y_true):
-        check_is_fitted(self)
-
-        y_pred, _ = self.predict(X_test)
-
-        mrr = score_mrr(y_true, y_pred)
-        mar = score_mar(y_true, y_pred)
-
-        return 0 if not mrr and not mar else 2 * (mrr * mar) / (mrr + mar)

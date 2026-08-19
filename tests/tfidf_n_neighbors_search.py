@@ -3,7 +3,7 @@ import warnings
 
 from joblib import Memory
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, KFold
 from sklearn.feature_extraction.text import TfidfVectorizer
 from pathlib import Path
 
@@ -24,8 +24,11 @@ OUTPUT_FILE = CACHE_DIR.joinpath(f"{SCRIPT_NAME}.pkl").resolve()
 
 N_LABELS = 20
 N_JOBS = -1
-CV = 10
+N_SPLITS = 10
+
 PARAM_GRID = {"estimator__n_neighbors": [25, 50, 100, 200]}
+
+RANDOM_STATE = 0
 
 warnings.filterwarnings("ignore")
 
@@ -45,15 +48,17 @@ def main(connection):
     client = DatabaseClient(connection)
 
     contents, _ = client.get_citations()
-    _, annotations = client.get_annotations("corpus")
+    _, annotations = client.get_annotations("citations")
 
     memory = Memory(MEMORY_DIR, verbose=0)
     max_neighbors = max(PARAM_GRID["estimator__n_neighbors"])
 
     transformer = TfidfVectorizer(tokenizer=tokenize, token_pattern=None)
     estimator = OntologyEstimator(n_labels=N_LABELS, n_jobs=N_JOBS, max_neighbors=max_neighbors, memory=memory)
+
     pipeline = Pipeline([("transformer", transformer), ("estimator", estimator)], memory=memory)
-    gridsearch = GridSearchCV(pipeline, param_grid=PARAM_GRID, scoring=score_custom, refit=False, cv=CV, verbose=10)
+    kfold = KFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
+    gridsearch = GridSearchCV(pipeline, param_grid=PARAM_GRID, scoring=score_custom, refit=False, cv=kfold, verbose=10)
 
     gridsearch.fit(contents, annotations)
 

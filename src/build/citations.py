@@ -1,7 +1,6 @@
 import os
 import time
 import requests
-import re
 
 from xml.etree import ElementTree
 
@@ -19,23 +18,24 @@ MAX_RETRY = 3
 
 EXTRACT_WHITESPACE = r"^\s*$"
 
-CREATE_LITERATURE_TABLE = """
-    CREATE TABLE IF NOT EXISTS corpus (
+CREATE_CITATIONS_TABLE = """
+    CREATE TABLE IF NOT EXISTS citations (
         id INTEGER PRIMARY KEY,
+        date INTEGER NOT NULL,
         content TEXT NOT NULL
     )
 """
 
 INSERT_DOCUMENT = """
-    INSERT INTO corpus (id, content)
-    VALUES (?, ?)
+    INSERT INTO citations (id, date, content)
+    VALUES (?, ?, ?)
     ON CONFLICT (id) DO UPDATE
-    SET content = excluded.content
+    SET date = excluded.date, content = excluded.content
 """
 
 SELECT_INCOMPLETE = """
     SELECT citation_id FROM annotations
-    WHERE citation_id NOT IN (SELECT id FROM corpus)
+    WHERE citation_id NOT IN (SELECT id FROM citations)
     ORDER BY citation_id
 """
 
@@ -45,30 +45,58 @@ def parse(response):
 
     root = ElementTree.fromstring(response.content)
 
-    for citation in root.findall("./PubmedArticle/MedlineCitation"):
-        id = citation.find("./PMID")
+    for article in root.findall("./PubmedArticle"):
+        citation = article.find("./MedlineCitation")
 
-        if id is None or id.text is None:
+        if citation is None:
             continue
 
         try:
-            id = int(id.text)
+            id = int(citation.findtext("./PMID"))
         except:
             continue
 
-        abstract = citation.find(".//Abstract")
+        abstract = citation.find("./Article/Abstract")
 
         if abstract is None:
             continue
 
-        sections = [section.text for section in abstract.findall("AbstractText") if section.text is not None]
+        sections = []
+
+        for text in abstract.findall("./AbstractText"):
+            section = "".join(text.itertext()).strip()
+
+            if not section:
+                continue
+
+            sections.append(section)
 
         content = "\n\n".join(sections)
 
-        if re.match(EXTRACT_WHITESPACE, content):
+        if not content:
             continue
 
-        result[id] = content
+        date = 0
+
+        history = article.find("./PubmedData/History/PubMedPubDate[@PubStatus='pubmed']")
+
+        if history is None:
+            result[id] = (date, content)
+
+            continue
+
+        try:
+            year = int(history.findtext("./Year"))
+            month = int(history.findtext("./Month"))
+            day = int(history.findtext("./Day"))
+        except:
+            result[id] = (date, content)
+
+            continue
+
+        date = int(f"{year:0>4}{month:0>2}{day:0>2}")
+
+        result[id] = (date, content)
 
     return result
 
@@ -101,11 +129,9 @@ def fetch(batch):
 
 
 def main(connection):
-    connection.execute(CREATE_LITERATURE_TABLE)
+    connection.execute(CREATE_CITATIONS_TABLE)
 
     incomplete = [id for (id,) in connection.execute(SELECT_INCOMPLETE).fetchall()]
-
-    l = len(incomplete)
 
     for i in range(0, len(incomplete), BATCH_SIZE):
         batch = incomplete[i : i + BATCH_SIZE]
@@ -114,7 +140,7 @@ def main(connection):
 
         result = fetch(batch)
 
-        connection.executemany(INSERT_DOCUMENT, result.items())
+        connection.executemany(INSERT_DOCUMENT, [(id, date, content) for id, (date, content) in result.items()])
         connection.commit()
 
 
