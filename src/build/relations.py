@@ -31,12 +31,6 @@ INSERT_RELATION = """
     ON CONFLICT (child_id, parent_id, predicate) DO NOTHING
 """
 
-{
-    "sub": "http://purl.obolibrary.org/obo/GO_0000018",
-    "pred": "http://purl.obolibrary.org/obo/RO_0002211",
-    "obj": "http://purl.obolibrary.org/obo/GO_0006310",
-}
-
 
 def read(path):
     with open(path) as file:
@@ -78,7 +72,7 @@ def read(path):
 
                 parent_id = int(result.group(1))
 
-                yield child_id, parent_id, properties[predicate] if predicate != "is_a" else "is_a"
+                yield child_id, parent_id, properties[predicate] if predicate != "is_a" else "is a"
 
 
 def main(connection):

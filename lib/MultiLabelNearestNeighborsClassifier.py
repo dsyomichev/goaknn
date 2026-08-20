@@ -15,7 +15,7 @@ class MultiLabelNearestNeighborsClassifier(BaseEstimator):
 
     def __init__(self, n_neighbors=5, m_neighbors=None, n_labels=None, e_amplification=1, n_jobs=None, memory=None):
         self.n_neighbors = n_neighbors
-        self.m_neighbors = n_neighbors if not m_neighbors else m_neighbors
+        self.m_neighbors = m_neighbors
         self.n_labels = n_labels
         self.e_amplification = e_amplification
         self.n_jobs = n_jobs
@@ -28,6 +28,8 @@ class MultiLabelNearestNeighborsClassifier(BaseEstimator):
         self.X_train_ = X_train
         self.y_train_ = y_train
 
+        self.m_neighbors_ = self.n_neighbors if not self.m_neighbors else self.m_neighbors
+
         self.compute_ = check_memory(self.memory).cache(compute, ignore=["n_jobs"]) if self.memory else compute
 
         self._is_fitted = True
@@ -37,7 +39,7 @@ class MultiLabelNearestNeighborsClassifier(BaseEstimator):
     def predict(self, X_test):
         check_is_fitted(self)
 
-        distances, indices = self.compute_(self.X_train_, X_test, self.m_neighbors, self.n_jobs)
+        distances, indices = self.compute_(self.X_train_, X_test, self.m_neighbors_, self.n_jobs)
 
         y_pred, sim_pred = [], []
 

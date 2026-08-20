@@ -1,18 +1,3 @@
-def mean_reciprocal_rank(y_true, y_pred):
-    reciprocal_rank_agg = 0
-    num_samples = len(y_true)
-
-    for labels_true, labels_pred in zip(y_true, y_pred):
-        labels_true_set = set(labels_true)
-
-        for j, label in enumerate(labels_pred):
-            if label in labels_true_set:
-                reciprocal_rank_agg += 1 / (j + 1)
-                break
-
-    return 0 if not num_samples else reciprocal_rank_agg / len(y_true)
-
-
 def macro_average_recall(y_true, y_pred):
     result = {}
 
@@ -37,31 +22,16 @@ def macro_average_recall(y_true, y_pred):
     return mar
 
 
-def hierarchical_precision(y_true, y_pred):
-    num = 0
-    den = 0
+def mean_reciprocal_rank(y_true, y_pred):
+    reciprocal_rank_agg = 0
+    num_samples = len(y_true)
 
     for labels_true, labels_pred in zip(y_true, y_pred):
         labels_true_set = set(labels_true)
-        labels_pred_set = set(labels_pred)
 
-        num += len(labels_pred_set.intersection(labels_true_set))
-        den += len(labels_pred_set)
+        for j, label in enumerate(labels_pred):
+            if label in labels_true_set:
+                reciprocal_rank_agg += 1 / (j + 1)
+                break
 
-    return 0 if not den else num / den
-
-
-def hierarchical_recall(y_true, y_pred):
-    num = 0
-    den = 0
-
-    for labels_true, labels_pred in zip(y_true, y_pred):
-        labels_true_set = set(labels_true)
-        labels_pred_set = set(labels_pred)
-
-        num += len(labels_pred_set.intersection(labels_true_set))
-        den += len(labels_true_set)
-
-    print(num, den)
-
-    return 0 if not den else num / den
+    return 0 if not num_samples else reciprocal_rank_agg / len(y_true)

@@ -39,10 +39,6 @@ def read(path):
             for node in graph.get("nodes"):
                 id = node.get("id", "")
                 label = node.get("lbl", "")
-                deprecated = node.get("meta", {}).get("deprecated", None)
-
-                if deprecated:
-                    continue
 
                 if not id or not label:
                     continue

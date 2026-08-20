@@ -37,15 +37,15 @@ N_SPLITS = 10
 RANDOM_STATE = 0
 
 
-def mrr_mar_f1(classifier, X_test, y_true):
+def mrr_mar_f(classifier, X_test, y_true):
     y_pred, _ = classifier.predict(X_test)
 
     mrr = mean_reciprocal_rank(y_true, y_pred)
     mar = macro_average_recall(y_true, y_pred)
 
-    f1 = 0 if not mrr and not mar else 2 * (mrr * mar) / (mrr + mar)
+    f = 0 if not mrr and not mar else 2 * (mrr * mar) / (mrr + mar)
 
-    return {"mrr": mrr, "mar": mar, "f1": f1}
+    return {"mrr": mrr, "mar": mar, "f": f}
 
 
 def main(connection, method):
@@ -67,9 +67,20 @@ def main(connection, method):
 
     classifier = MultiLabelNearestNeighborsClassifier(n_jobs=N_JOBS, m_neighbors=m_neighbors, memory=memory)
 
-    pipeline = Pipeline([("transformer", transformer), ("classifier", classifier)], memory=memory)
+    steps = [("transformer", transformer), ("classifier", classifier)]
+    pipeline = Pipeline(steps, memory=memory if method == "tfidf" else None)
+
     kfold = KFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
-    gridsearch = GridSearchCV(pipeline, param_grid=PARAM_GRID, scoring=mrr_mar_f1, refit=False, cv=kfold, verbose=10)
+
+    gridsearch = GridSearchCV(
+        pipeline,
+        param_grid=PARAM_GRID,
+        scoring=mrr_mar_f,
+        refit=False,
+        cv=kfold,
+        verbose=10,
+        error_score="raise",
+    )
 
     gridsearch.fit(contents, annotations)
 
