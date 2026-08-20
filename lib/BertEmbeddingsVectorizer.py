@@ -5,7 +5,7 @@ from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 
 
-class BertVectorizer(BaseEstimator):
+class BertEmbeddingsVectorizer(BaseEstimator):
 
     def __init__(self, model_name, device_name=None):
         self.model_name = model_name

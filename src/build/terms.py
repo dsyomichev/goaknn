@@ -12,6 +12,10 @@ BATCH_SIZE = 2000
 
 EXTRACT_GOID = r"http:\/\/purl\.obolibrary\.org\/obo\/GO_(\d{7})"
 
+DROP_TERMS_TABLE = """
+    DROP TABLE IF EXISTS terms
+"""
+
 CREATE_TERMS_TABLE = """
     CREATE TABLE IF NOT EXISTS terms (
         id INTEGER PRIMARY KEY,
@@ -33,31 +37,34 @@ def read(path):
 
         for graph in data.get("graphs"):
             for node in graph.get("nodes"):
-                label = node.get("lbl")
-                symbol = node.get("id")
+                id = node.get("id", "")
+                label = node.get("lbl", "")
+                deprecated = node.get("meta", {}).get("deprecated", None)
 
-                if label is None or symbol is None:
+                if deprecated:
                     continue
 
-                result = re.match(EXTRACT_GOID, symbol)
-
-                if result is None or result.group(1) is None:
+                if not id or not label:
                     continue
 
-                try:
-                    id = int(result.group(1))
-                except:
+                result = re.match(EXTRACT_GOID, id)
+
+                if not result:
                     continue
+
+                id = int(result.group(1))
 
                 yield id, label
 
 
 def main(connection):
+    connection.execute(DROP_TERMS_TABLE)
     connection.execute(CREATE_TERMS_TABLE)
 
     batch = []
 
     for row in read(SOURCE_FILE):
+
         batch.append(row)
 
         if len(batch) >= BATCH_SIZE:

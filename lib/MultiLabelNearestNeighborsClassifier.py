@@ -11,7 +11,7 @@ def compute(X_train, X_test, n_neighbors, n_jobs):
     return estimator.kneighbors(X_test)
 
 
-class OntologyEstimator(BaseEstimator):
+class MultiLabelNearestNeighborsClassifier(BaseEstimator):
 
     def __init__(self, n_neighbors=5, m_neighbors=None, n_labels=None, e_amplification=1, n_jobs=None, memory=None):
         self.n_neighbors = n_neighbors

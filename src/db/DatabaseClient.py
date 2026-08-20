@@ -28,6 +28,11 @@ SELECT_TERMS = """
     ORDER BY id ASC
 """
 
+SELECT_RELATIONS = """
+    SELECT child_id, parent_id, predicate FROM relations
+    ORDER BY child_id ASC
+"""
+
 DROP_VOCABULARY_TABLE = """
     DROP TABLE IF EXISTS vocabulary
 """
@@ -156,6 +161,17 @@ class DatabaseClient:
 
         for id, label in terms:
             mapping[id] = label
+
+        return mapping
+
+    def get_relations(self):
+        mapping = {}
+
+        relations = self.connection.execute(SELECT_RELATIONS)
+
+        for child_id, parent_id, predicate in relations:
+            value = mapping.setdefault(child_id, {})
+            value[parent_id] = predicate
 
         return mapping
 

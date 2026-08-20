@@ -35,3 +35,33 @@ def macro_average_recall(y_true, y_pred):
         mar += 0 if not num_inst or not num_class else true_pos / num_inst / num_class
 
     return mar
+
+
+def hierarchical_precision(y_true, y_pred):
+    num = 0
+    den = 0
+
+    for labels_true, labels_pred in zip(y_true, y_pred):
+        labels_true_set = set(labels_true)
+        labels_pred_set = set(labels_pred)
+
+        num += len(labels_pred_set.intersection(labels_true_set))
+        den += len(labels_pred_set)
+
+    return 0 if not den else num / den
+
+
+def hierarchical_recall(y_true, y_pred):
+    num = 0
+    den = 0
+
+    for labels_true, labels_pred in zip(y_true, y_pred):
+        labels_true_set = set(labels_true)
+        labels_pred_set = set(labels_pred)
+
+        num += len(labels_pred_set.intersection(labels_true_set))
+        den += len(labels_true_set)
+
+    print(num, den)
+
+    return 0 if not den else num / den

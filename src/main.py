@@ -3,11 +3,11 @@ import re
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from lib.OntologyEstimator import OntologyEstimator
-from lib.BertVectorizer import BertVectorizer
+from lib.MultiLabelNearestNeighborsClassifier import MultiLabelNearestNeighborsClassifier
+from lib.BertEmbeddingsVectorizer import BertEmbeddingsVectorizer
 from lib.preprocess import tokenize
 
-from src.db.DatabaseClient import DatabaseClient, CREATE_EMBEDDINGS_TABLE
+from src.db.DatabaseClient import DatabaseClient
 from src.db.execute import execute
 from src.build import terms, annotations, citations
 from src.parser import parser
@@ -25,11 +25,6 @@ STDIN_DOC_SEP = r"\n\s*\n"
 N_NEIGHBORS = 200
 N_LABELS = 20
 N_JOBS = -1
-
-SELECT_CITATIONS_MISSING_EMBEDDINGS = """
-    SELECT id, content FROM citations
-    WHERE id not in (SELECT id FROM embeddings)
-"""
 
 
 def main(connection):
@@ -63,7 +58,7 @@ def main(connection):
             client.set_vectorizations(vectors, ids)
 
         else:
-            transformer = BertVectorizer(model_name=MODEL_NAME)
+            transformer = BertEmbeddingsVectorizer(model_name=MODEL_NAME)
 
             client.set_embeddings([], [])
 
@@ -100,18 +95,18 @@ def main(connection):
             transformer.idf_ = idf
 
         else:
-            transformer = BertVectorizer(model_name=MODEL_NAME).fit([])
+            transformer = BertEmbeddingsVectorizer(model_name=MODEL_NAME).fit([])
 
             vectors, ids = client.get_embeddings()
             _, annotations = client.get_annotations_in("embeddings")
 
-        estimator = OntologyEstimator(n_neighbors=N_NEIGHBORS, n_labels=N_LABELS, n_jobs=N_JOBS)
+        classifier = MultiLabelNearestNeighborsClassifier(n_neighbors=N_NEIGHBORS, n_labels=N_LABELS, n_jobs=N_JOBS)
 
-        estimator.fit(vectors, annotations)
+        classifier.fit(vectors, annotations)
 
         test_vectors = transformer.transform(args.target)
 
-        pred_term_ids, pred_term_scores = estimator.predict(test_vectors)
+        pred_term_ids, pred_term_scores = classifier.predict(test_vectors)
 
         term_label_mapping = client.get_terms()
 
