@@ -7,13 +7,13 @@ from lib.OntologyEstimator import OntologyEstimator
 from lib.BertVectorizer import BertVectorizer
 from lib.preprocess import tokenize
 
-from src.db.DatabaseClient import DatabaseClient
+from src.db.DatabaseClient import DatabaseClient, CREATE_EMBEDDINGS_TABLE
 from src.db.execute import execute
 from src.build import terms, annotations, citations
 from src.parser import parser
 from src.output import output
 
-BATCH_SIZE = 200
+BATCH_SIZE = 1
 
 MODEL_NAME = "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"
 
@@ -25,6 +25,11 @@ STDIN_DOC_SEP = r"\n\s*\n"
 N_NEIGHBORS = 200
 N_LABELS = 20
 N_JOBS = -1
+
+SELECT_CITATIONS_MISSING_EMBEDDINGS = """
+    SELECT id, content FROM citations
+    WHERE id not in (SELECT id FROM embeddings)
+"""
 
 
 def main(connection):
@@ -58,9 +63,13 @@ def main(connection):
             client.set_vectorizations(vectors, ids)
 
         else:
-            transformer = BertVectorizer(model_name=MODEL_NAME).fit([])
+            transformer = BertVectorizer(model_name=MODEL_NAME)
 
-            contents, ids = client.get_citations()
+            client.set_embeddings([], [])
+
+            contents, ids = client.get_citations_not_in("embeddings")
+
+            transformer.fit(None)
 
             for i in range(0, len(ids), BATCH_SIZE):
                 batch_ids = ids[i : i + BATCH_SIZE]
@@ -85,7 +94,7 @@ def main(connection):
 
             vocabulary, idf = client.get_vocabulary()
             vectors, ids = client.get_vectorizations()
-            _, annotations = client.get_annotations("vectorizations")
+            _, annotations = client.get_annotations_in("vectorizations")
 
             transformer.vocabulary_ = vocabulary
             transformer.idf_ = idf
@@ -94,7 +103,7 @@ def main(connection):
             transformer = BertVectorizer(model_name=MODEL_NAME).fit([])
 
             vectors, ids = client.get_embeddings()
-            _, annotations = client.get_annotations("embeddings")
+            _, annotations = client.get_annotations_in("embeddings")
 
         estimator = OntologyEstimator(n_neighbors=N_NEIGHBORS, n_labels=N_LABELS, n_jobs=N_JOBS)
 

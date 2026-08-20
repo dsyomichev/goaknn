@@ -11,7 +11,13 @@ SELECT_CITATIONS = """
     ORDER BY id ASC
 """
 
-SELECT_ANNOTATIONS = """
+SELECT_CITATIONS_NOT_IN = """
+    SELECT id, content FROM citations
+    WHERE id NOT IN (SELECT id FROM {})
+    ORDER BY id ASC
+"""
+
+SELECT_ANNOTATIONS_IN = """
     SELECT citation_id, term_id FROM annotations
     WHERE citation_id in (SELECT id FROM {})
     ORDER BY citation_id ASC
@@ -82,7 +88,7 @@ DROP_EMBEDDINGS_TABLE = """
 
 CREATE_EMBEDDINGS_TABLE = """
     CREATE TABLE IF NOT EXISTS embeddings (
-        id INTEGER PRIMARY KEY
+        id INTEGER PRIMARY KEY,
         data BLOB NOT NULL
     )
 """
@@ -116,10 +122,21 @@ class DatabaseClient:
 
         return contents, numpy.array(ids)
 
-    def get_annotations(self, subset):
+    def get_citations_not_in(self, table):
+        citations = self.connection.execute(SELECT_CITATIONS_NOT_IN.format(table))
+
+        contents, ids = [], []
+
+        for id, content in citations:
+            contents.append(content)
+            ids.append(id)
+
+        return contents, numpy.array(ids)
+
+    def get_annotations_in(self, table):
         citation_ids, term_ids = [], []
 
-        annotations = self.connection.execute(SELECT_ANNOTATIONS.format(subset))
+        annotations = self.connection.execute(SELECT_ANNOTATIONS_IN.format(table))
 
         for citation_id, group in itertools.groupby(annotations, key=lambda item: item[0]):
             annotation = []
@@ -237,7 +254,7 @@ class DatabaseClient:
         batch = []
 
         for id, embed in zip(citation_ids, citation_embeds):
-            batch.append((id, pickle.dumps(embed)))
+            batch.append((int(id), pickle.dumps(embed)))
 
             if len(batch) >= BATCH_SIZE:
                 self.connection.executemany(INSERT_EMBEDDING, batch)

@@ -1,4 +1,3 @@
-import numpy
 import torch
 
 from transformers import AutoModel, AutoTokenizer
@@ -8,17 +7,25 @@ from sklearn.utils.validation import check_is_fitted
 
 class BertVectorizer(BaseEstimator):
 
-    def __init__(self, model_name):
+    def __init__(self, model_name, device_name=None):
         self.model_name = model_name
+        self.device_name = device_name
 
     def __sklearn_is_fitted__(self):
-        return hasattr(self, "tokenizer") and hasattr(self, "model") and self._is_fitted
+        return hasattr(self, "_is_fitted")
 
     def fit(self, X, y=None):
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.model = AutoModel.from_pretrained(self.model_name).eval()
+        if self.device_name:
+            self.device_ = torch.device(self.device_name)
+        else:
+            self.device_ = torch.accelerator.current_accelerator(check_available=True) or torch.device("cpu")
 
-        self.max_length = self.model_.config.max_position_embeddings
+        self.tokenizer_ = AutoTokenizer.from_pretrained(self.model_name)
+        self.model_ = AutoModel.from_pretrained(self.model_name).eval()
+
+        self.model_.to(self.device_)
+
+        self.max_length_ = self.model_.config.max_position_embeddings
 
         self._is_fitted = True
 
@@ -27,18 +34,18 @@ class BertVectorizer(BaseEstimator):
     def transform(self, X):
         check_is_fitted(self)
 
-        result = []
+        tokens = self.tokenizer_(X, return_tensors="pt", truncation=True, padding=True, max_length=self.max_length_)
 
-        for sample in X:
-            tokens = self.tokenizer_(sample, return_tensors="pt", truncation=True, max_length=self.max_length)
+        tokens.to(self.device_)
 
-            with torch.inference_mode():
-                output = self.model_(**tokens)
+        with torch.inference_mode():
+            hidden = self.model_(**tokens).last_hidden_state
 
-            vectors = output.last_hidden_state.squeeze(0)
-            result.append(vectors.numpy().mean(axis=0))
+        att_mask = tokens["attention_mask"].unsqueeze(-1)
+        masked_hidden = hidden * att_mask
+        results = masked_hidden.sum(axis=1) / att_mask.sum(axis=1)
 
-        return numpy.array(result)
+        return results.cpu().numpy()
 
     def fit_transform(self, X, y=None):
         return self.fit(X, y).transform(X)

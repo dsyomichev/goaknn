@@ -26,7 +26,7 @@ INSERT_ANNOTATION = """
     INSERT INTO annotations (term_id, citation_id, date)
     VALUES (?, ?, ?)
     ON CONFLICT (term_id, citation_id) DO UPDATE
-    SET date = excluded.date
+    SET date = MIN(date, excluded.date)
 """
 
 

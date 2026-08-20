@@ -1,4 +1,4 @@
-import joblib
+import json
 import warnings
 
 from joblib import Memory
@@ -9,10 +9,12 @@ from pathlib import Path
 
 from lib.OntologyEstimator import OntologyEstimator
 from lib.preprocess import tokenize
-from lib.scoring import score_mrr, score_mar
+from lib.metrics import mean_reciprocal_rank, macro_average_recall
 
 from src.db.DatabaseClient import DatabaseClient
 from src.db.execute import execute
+
+from tests.util.default import default
 
 SCRIPT_NAME = Path(__file__).stem
 
@@ -20,13 +22,13 @@ ROOT_DIR = Path(__file__, "../..").resolve()
 CACHE_DIR = ROOT_DIR.joinpath(f"data/cache/{SCRIPT_NAME}/").resolve()
 
 MEMORY_DIR = CACHE_DIR.joinpath("memory/").resolve()
-OUTPUT_FILE = CACHE_DIR.joinpath(f"{SCRIPT_NAME}.pkl").resolve()
+OUTPUT_FILE = CACHE_DIR.joinpath("output.json").resolve()
 
 N_LABELS = 20
 N_JOBS = -1
 N_SPLITS = 10
 
-PARAM_GRID = {"estimator__n_neighbors": [25, 50, 100, 200]}
+PARAM_GRID = {"estimator__n_neighbors": [25, 50, 100, 200], "estimator__e_amplification": [1, 3, 5]}
 
 RANDOM_STATE = 0
 
@@ -36,25 +38,26 @@ warnings.filterwarnings("ignore")
 def score_custom(estimator, X_test, y_true):
     y_pred, _ = estimator.predict(X_test)
 
-    mrr = score_mrr(y_true, y_pred)
-    mar = score_mar(y_true, y_pred)
+    mrr = mean_reciprocal_rank(y_true, y_pred)
+    mar = macro_average_recall(y_true, y_pred)
 
     fscore = 0 if not mrr and not mar else 2 * (mrr * mar) / (mrr + mar)
 
-    return {"mrr": mrr, "mar": mar, "fscore": fscore}
+    return {"mrr": mrr, "mar": mar, "f": fscore}
 
 
 def main(connection):
     client = DatabaseClient(connection)
 
     contents, _ = client.get_citations()
-    _, annotations = client.get_annotations("citations")
+    _, annotations = client.get_annotations_in("citations")
 
     memory = Memory(MEMORY_DIR, verbose=0)
-    max_neighbors = max(PARAM_GRID["estimator__n_neighbors"])
+
+    m_neighbors = max(PARAM_GRID["estimator__n_neighbors"])
 
     transformer = TfidfVectorizer(tokenizer=tokenize, token_pattern=None)
-    estimator = OntologyEstimator(n_labels=N_LABELS, n_jobs=N_JOBS, max_neighbors=max_neighbors, memory=memory)
+    estimator = OntologyEstimator(n_labels=N_LABELS, n_jobs=N_JOBS, m_neighbors=m_neighbors, memory=memory)
 
     pipeline = Pipeline([("transformer", transformer), ("estimator", estimator)], memory=memory)
     kfold = KFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
@@ -62,7 +65,8 @@ def main(connection):
 
     gridsearch.fit(contents, annotations)
 
-    joblib.dump(gridsearch, OUTPUT_FILE)
+    with open(OUTPUT_FILE, "w") as file:
+        json.dump(gridsearch.cv_results_, file, default=default, indent=4)
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.utils.validation import check_is_fitted, check_memory
 
 
-def evaluate(X_train, X_test, n_neighbors, n_jobs):
+def compute(X_train, X_test, n_neighbors, n_jobs):
     estimator = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=n_jobs, metric="cosine")
 
     estimator.fit(X_train)
@@ -13,23 +13,22 @@ def evaluate(X_train, X_test, n_neighbors, n_jobs):
 
 class OntologyEstimator(BaseEstimator):
 
-    def __init__(self, n_neighbors=5, n_labels=None, n_jobs=-1, max_neighbors=None, memory=None):
+    def __init__(self, n_neighbors=5, m_neighbors=None, n_labels=None, e_amplification=1, n_jobs=None, memory=None):
         self.n_neighbors = n_neighbors
+        self.m_neighbors = n_neighbors if not m_neighbors else m_neighbors
         self.n_labels = n_labels
+        self.e_amplification = e_amplification
         self.n_jobs = n_jobs
-
-        self.max_neighbors = n_neighbors if not max_neighbors else max_neighbors
         self.memory = memory
 
     def __sklearn_is_fitted__(self):
-        return hasattr(self, "X_train") and hasattr(self, "y_train") and self._is_fitted
+        return hasattr(self, "_is_fitted")
 
     def fit(self, X_train, y_train):
-        if self.memory:
-            check_memory(self.memory)
+        self.X_train_ = X_train
+        self.y_train_ = y_train
 
-        self.X_train = X_train
-        self.y_train = y_train
+        self.compute_ = check_memory(self.memory).cache(compute, ignore=["n_jobs"]) if self.memory else compute
 
         self._is_fitted = True
 
@@ -38,18 +37,17 @@ class OntologyEstimator(BaseEstimator):
     def predict(self, X_test):
         check_is_fitted(self)
 
-        evaluate_proxy = self.memory.cache(evaluate, ignore=["n_jobs"]) if self.memory else evaluate
-        distances, indices = evaluate_proxy(self.X_train, X_test, self.max_neighbors, self.n_jobs)
+        distances, indices = self.compute_(self.X_train_, X_test, self.m_neighbors, self.n_jobs)
 
         y_pred, sim_pred = [], []
 
         for pred_distances, pred_indices in zip(distances, indices):
             result = {}
 
-            similarities = (1 - pred_distances[: self.n_neighbors]) ** 3
+            similarities = (1 - pred_distances[: self.n_neighbors]) ** self.e_amplification
 
             for i, similarity in zip(pred_indices[: self.n_neighbors], similarities):
-                for label in self.y_train[i]:
+                for label in self.y_train_[i]:
                     result[label] = result.get(label, 0) + similarity
 
             sorted_result = sorted(result.items(), key=lambda item: item[1], reverse=True)

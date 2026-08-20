@@ -1,4 +1,4 @@
-def score_mrr(y_true, y_pred):
+def mean_reciprocal_rank(y_true, y_pred):
     reciprocal_rank_agg = 0
     num_samples = len(y_true)
 
@@ -13,7 +13,7 @@ def score_mrr(y_true, y_pred):
     return 0 if not num_samples else reciprocal_rank_agg / len(y_true)
 
 
-def score_mar(y_true, y_pred):
+def macro_average_recall(y_true, y_pred):
     result = {}
 
     for labels_true, labels_pred in zip(y_true, y_pred):
