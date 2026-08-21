@@ -1,3 +1,5 @@
+import numpy
+
 from sklearn.base import BaseEstimator
 from sklearn.neighbors import NearestNeighbors
 from sklearn.utils.validation import check_is_fitted, check_memory
@@ -11,13 +13,23 @@ def compute(X_train, X_test, n_neighbors, n_jobs):
     return estimator.kneighbors(X_test)
 
 
-class MultiLabelNearestNeighborsClassifier(BaseEstimator):
+class OntologyClassifier(BaseEstimator):
 
-    def __init__(self, n_neighbors=5, m_neighbors=None, n_labels=None, e_amplification=1, n_jobs=None, memory=None):
+    def __init__(
+        self,
+        n_neighbors=5,
+        m_neighbors=None,
+        n_labels=None,
+        e_amplification=1,
+        n_jobs=None,
+        ignore_exact=False,
+        memory=None,
+    ):
         self.n_neighbors = n_neighbors
         self.m_neighbors = m_neighbors
         self.n_labels = n_labels
         self.e_amplification = e_amplification
+        self.ignore_exact = ignore_exact
         self.n_jobs = n_jobs
         self.memory = memory
 
@@ -39,16 +51,24 @@ class MultiLabelNearestNeighborsClassifier(BaseEstimator):
     def predict(self, X_test):
         check_is_fitted(self)
 
-        distances, indices = self.compute_(self.X_train_, X_test, self.m_neighbors_, self.n_jobs)
+        m_neighbors = self.m_neighbors_ + 1 if self.ignore_exact else self.m_neighbors_
+
+        distances, indices = self.compute_(self.X_train_, X_test, m_neighbors, self.n_jobs)
 
         y_pred, sim_pred = [], []
 
         for pred_distances, pred_indices in zip(distances, indices):
             result = {}
 
-            similarities = (1 - pred_distances[: self.n_neighbors]) ** self.e_amplification
+            if self.ignore_exact:
+                ignore_mask = ~numpy.isclose(pred_distances, numpy.zeros_like(pred_distances))
 
-            for i, similarity in zip(pred_indices[: self.n_neighbors], similarities):
+                pred_distances = pred_distances[ignore_mask]
+                pred_indices = pred_indices[ignore_mask]
+
+            similarities = (1 - pred_distances) ** self.e_amplification
+
+            for i, similarity in zip(pred_indices[: self.n_neighbors], similarities[: self.n_neighbors]):
                 for label in self.y_train_[i]:
                     result[label] = result.get(label, 0) + similarity
 

@@ -19,7 +19,7 @@ SELECT_CITATIONS_NOT_IN = """
 
 SELECT_ANNOTATIONS_IN = """
     SELECT citation_id, term_id FROM annotations
-    WHERE citation_id in (SELECT id FROM {})
+    WHERE citation_id IN (SELECT id FROM {})
     ORDER BY citation_id ASC
 """
 

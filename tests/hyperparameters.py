@@ -10,13 +10,13 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from pathlib import Path
 from argparse import ArgumentParser
 
-from lib.MultiLabelNearestNeighborsClassifier import MultiLabelNearestNeighborsClassifier
+from lib.OntologyClassifier import OntologyClassifier
 from lib.preprocess import tokenize
 
 from src.db.DatabaseClient import DatabaseClient
 from src.db.execute import execute
 
-from tests.util.metrics import mean_reciprocal_rank, macro_average_recall
+from tests.util.metrics import mrr_mar_f
 from tests.util.serializers import primitive
 from tests.util.mock import MockVectorizer, SELECT_CONTENT_EMBEDDING_MAPPING
 
@@ -37,13 +37,10 @@ N_SPLITS = 10
 RANDOM_STATE = 0
 
 
-def mrr_mar_f(classifier, X_test, y_true):
+def custom_score(classifier, X_test, y_true):
     y_pred, _ = classifier.predict(X_test)
 
-    mrr = mean_reciprocal_rank(y_true, y_pred)
-    mar = macro_average_recall(y_true, y_pred)
-
-    f = 0 if not mrr and not mar else 2 * (mrr * mar) / (mrr + mar)
+    mrr, mar, f = mrr_mar_f(y_true, y_pred)
 
     return {"mrr": mrr, "mar": mar, "f": f}
 
@@ -65,7 +62,7 @@ def main(connection, method):
     else:
         transformer = TfidfVectorizer(tokenizer=tokenize, token_pattern=None)
 
-    classifier = MultiLabelNearestNeighborsClassifier(n_jobs=N_JOBS, m_neighbors=m_neighbors, memory=memory)
+    classifier = OntologyClassifier(n_jobs=N_JOBS, m_neighbors=m_neighbors, memory=memory)
 
     steps = [("transformer", transformer), ("classifier", classifier)]
     pipeline = Pipeline(steps, memory=memory if method == "tfidf" else None)
@@ -75,7 +72,7 @@ def main(connection, method):
     gridsearch = GridSearchCV(
         pipeline,
         param_grid=PARAM_GRID,
-        scoring=mrr_mar_f,
+        scoring=custom_score,
         refit=False,
         cv=kfold,
         verbose=10,

@@ -3,7 +3,7 @@ import re
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from lib.MultiLabelNearestNeighborsClassifier import MultiLabelNearestNeighborsClassifier
+from lib.OntologyClassifier import OntologyClassifier
 from lib.BertEmbeddingsVectorizer import BertEmbeddingsVectorizer
 from lib.preprocess import tokenize
 
@@ -100,7 +100,7 @@ def main(connection):
             vectors, ids = client.get_embeddings()
             _, annotations = client.get_annotations_in("embeddings")
 
-        classifier = MultiLabelNearestNeighborsClassifier(n_neighbors=N_NEIGHBORS, n_labels=N_LABELS, n_jobs=N_JOBS)
+        classifier = OntologyClassifier(n_neighbors=N_NEIGHBORS, n_labels=N_LABELS, n_jobs=N_JOBS)
 
         classifier.fit(vectors, annotations)
 
