@@ -32,32 +32,58 @@
 \end{abstract}
 
 \section{Introduction}
+
 \subsection{The Gene Ontology}
+
 \subsection{Annotating Biological Text}
+
 \subsection{GOCat and Electronic Annotation}
 
-\section{Literature Overview}
-
+\section{Implementation}
 
 \subsection{Vectorization}
 
-Prior to classification, the arbitrary length documents must be translated into a \(p\) dimensional vector space for which the distance between two vectors \(v_1\) and \(v_2\) can be computed.  The program provides two distinct methods to achieve this task, the TfidfVectorizer from SKLearn, and a custom BertEmbeddingsVectorizer which implements the SKLearn transformer interface in order to fully integrate into an SKLearn workflow.
+Prior to classification, the arbitrary length documents must be translated into a \(p\) dimensional vector space for which the distance between two vectors \(v_1\) and \(v_2\) can be computed.  The program provides two independent methods to achieve this task, the TfidfVectorizer from SKLearn, and a custom BertEmbeddingsVectorizer which implements the SKLearn transformer interface in order to fully integrate into an SKLearn workflow.
 
 \subsubsection{Text Preprocessing}
 
-Used only in the TF-IDF vectorization process, tokenization standardizes the vocabulary of the corpus, and prevents commonly used words that carry minimal meaning from dominating the frequency aggregates. The general process follows that of Gobeill et al. \cite{Gobeill:2013}, though slightly more complex.
+Used only in TF-IDF vectorization, the tokenization process standardizes the vocabulary of the corpus, and prevents commonly used words that carry minimal meaning from dominating the frequency aggregates. The general process follows that of Gobeill et al. \cite{Gobeill:2013}, though slightly more complex than described in that work.
 
 The first stage of this process is the removal of apostrophes, punctuation unique in that it appears within a word and cannot be treated as a separator. This is important because the tokenization stage collects words which contain at least a single alphabetical and any number of numerical characters, split by whitespace or punctuation.
 
-Alphabetical tokens are reduced to root form using the Porter stemming algorithm \cite{Porter:1980}. By combining the variants of a token into a single feature, the dimensionality of the vector space is minimized. Alphanumerical tokens are deliberately not stemmed, as the algorithm incorrectly strips characters from certain words, which then lose contextual meaning. To provide a concrete example using a term from the GO:
+Alphabetical tokens are reduced to root form using the Porter stemming algorithm \cite{Porter:1980}. By combining the variants of a token into a single feature, the dimensionality of the vector space is minimized. Alphanumerical tokens are deliberately not stemmed as the algorithm incorrectly strips characters from certain tokens, which then partially lose contextual meaning. To provide a concrete example using a term from the GO:
 
-\[\textnormal{Rpd3S complex} \rightarrow \{\textnormal{rpd3s}, \textnormal{complex}\} \rightarrow  \{\textnormal{rpd3}, \textnormal{complex}\}\]
+\[\textnormal{"Rpd3S complex"} \rightarrow \{\textnormal{rpd3s}, \textnormal{complex}\} \rightarrow  \{\textnormal{rpd3}, \textnormal{complex}\}\]
 
-The preprocessing pipeline is utilized symmetrically across vectorization points within the program, meaning training and testing inputs are tokenized identically.
+Once the tokens have been stemmed, they are filtered against a stop-word list, which contains some of the most common English language words. Both the Porter stemming implementation and the stop-word list are provided by the NLTK library. The preprocessing pipeline is utilized symmetrically across vectorization points within the program, meaning training and testing inputs are tokenized identically.
 
-\subsubsection{TF-IDF}
+\subsubsection{Term and Inverse Document Frequency}
 
+In the TF-IDF format, documents are represented as sparse vectors with dimensionality equal to the number of tokens in the corpus vocabulary. Each feature is equivalent to the representation of a term within the document, weighed by the representation of the term across the corpus. Adapting the description from Robertson \cite{Robertson:2004}, a term appearing in many documents, such as "protein" across the corpus of article abstracts, is not a good differentiator of documents. This implies that the term's impact on a query should be minimal.
 
+A corpus \(D\) is a set of documents \(d = \{t_1, t_2, t_3,...\}\), each a bag of terms such that \(t \in V_D\), the vocabulary of the corpus. The vectorizer is fit to a corpus by determining \(V_D\) and the inverse document frequency vector \(f = (f_1, f_2, f_3, ...)\) such that
+
+\[f_i = \log{ \frac{ |D| }{ \sum_{ d \in D} |\{ t_j : t_j \in d , t_j = t_i\}| } } \textnormal{ for } t_i \in V_D \]
+
+Each dimension of the vector corresponds to a specific term in the vocabulary, and represents the inverse proportion of that term throughout the corpus; common terms will have a weight near zero. This process is carried out once across the entire corpus, while the TF vector \(g^d\) is calculated per-document with
+
+\[g_i^d = \frac{|\{ t_j : t_j \in d, t_j = t_i \}|}{|d|} \textnormal{ for } t_i \in V_D\]
+
+Then the vectorized form of a document \(d'\) is computed using \(d'_i = f_ig^d_i \). Each dimension of the vector still corresponds to a term in the vocabulary, and represents the ratio of the term to it's inverse proportion throughout the corpus.  Each document is the corpus is vectorized, and any test documents are vectorized without being modifying the vocabulary or IDF vector.
+
+\subsubsection{Embeddings}
+
+The second vectorization method utilizes a pretrained model to encode documents as dense vectors in lieu of the sparse representation of TF-IDF vectorization. The model chosen as the default for this project was BiomedBERT \cite{Gu:2020}, a BERT \cite{Devlin:2018} variant trained from scratch on abstracts from PubMed and full text articles from PubMedCentral. BiomedBERT stands out in that it was trained using a domain-specific methodology; meaning the model was trained from scratch, rather than tuned from a general domain training set. Gu et al. claim that this methodology is better suited towards biomedical text analysis since it deviates so heavily from general domain text.
+
+Utilizing the Transformers library from HuggingFace, the model is automatically initialized with the correct configuration, based on the provided model's name or path. A batch of documents is tokenized, each document transformed into a sequence of tokens, truncated to the maximum sequence length tolerated by the model. Each sequence shorter than the maximum sequence length across the batch is padded, ensuring the batch of sequences is rectangular.
+
+The BERT model architecture uses bidirectional self-attention, meaning each token attends to the context across the entire sequence. This ensures each token embedding is a reflection of the token's context within the document.  The vectors of the last hidden state are a per-token representation, and are aggregated by the mean-pooling strategy described by Reimers et al \cite{Reimers:2019}. To remove the influence of padding tokens, the attention mask is used to zero out non-contributing vectors from the final mean-pooled result. \cite{Reimers:2019}
+
+Given a batch \(D\) of documents \(d = \{t_1, t_2, t_3, ...\}\), each a sequence of tokens with attention mask \(a^d = (a^d_1, a^d_2, a^d_3, ...)\) such that \(a^d_i \in \{0, 1\}\), the model returns a sequence of embedding vectors \(e^d = \{e^d_1, e^d_2, e^d_3,...\}\) where \(e^d_i \in \mathbb{R}^{768}\). \cite{Gu:2018}\cite{Devlin:2018} The resulting document embedding vector is the mean pool of each token vector, with respect to the attention mask:
+
+\[v^d = \frac{\sum_{i} e^d_ia^d_i}{\sum_{i} a^d_i}\]
+
+This results in a dense vector such that \(v^d \in \mathbb{R}^{768}\), which is entirely independent of the corpus as a whole.
 
 \subsection{Classification}
 
@@ -80,23 +106,38 @@ The KNN algorithm computes an ordered sequence of document/distance pairs \(\{(d
 
 This process reverts the distance back to a similarity, and then takes it to an exponent \(\rho\); a method proposed by Breese et al. \cite{Breese:1998} This technique emphasizes closer matches while further punishing further matches. In order to prevent sign degeneration, \(\rho\) must be an odd integer.
 
- With \(T_d\) as the set of terms annotated to a document \(d\), the score for a term \(t\) is calculated by:
+ With \(T_d\) as the set of GO terms annotated to a document \(d\), the score for a term \(t\) is calculated by:
 
 \[ score(t) = \sum_{(d_k, s'_k)}s'_k\ [t \in T_{d_k}]  \]
 
 where \([t \in T_{d_k}]\) is a conditional statement which evaluates to one if the condition is true, and is otherwise zero. Each term annotated to a document in the prediction set is scored and then the list of terms is sorted by the aggregate score, representing the final prediction sequence \(T_{d_{test}}\).
 
-
-
-
-
 \section{Experiment}
+
 \subsection{Hyperparameter Tuning}
+
 \subsection{Hierarchical Metrics}
+
 \subsection{Temporal Evolution}
 
-\section{Drawbacks and Flaws}
+\section{Evaluation}
+
+\subsubsection{Vectorization Trade-offs}
+
+The primary determining factor of TF-IDF vector comparison is the presence of token which are uncommon or "markers" across the corpus. Even under normalization through cosine distance comparison, tokens with higher IDF values will contribute more to the direction of a document vector than common tokens such as "protein" or "cell". This is a valuable property of the vectorization, and ensures that documents containing the similar distributions of marker tokens are grouped together.
+
+Context and language variation are where this method begins to struggle; Many terms in the ontology are multiple words long, such as "mitochondrion inheritance", and the semantic context between the two cannot be accurately represented within the current tokenization process, at least without significantly ballooning the size of the dictionary. Synonyms are also common across biomedical text, and the sparse dictionary method treats each as entirely unrelated.
+
+The process is dependent on the corpus of documents, alongside the tokenization process. This means that any time a document to the corpus, the transformer must be re-fitted and the corpus re-vectorized. The cost of adding a document to the corpus scales proportionally to the corpus' size. With a relatively simple tokenization process, this is a computationally cheap task. However, even with the simple process outlined in the implementation of the tokenization process, memoization was required to significantly reduce computation time of the Porter stemming. The more nuance added to the tokenization process, such as re-mapping synonyms, the more expensive the process becomes.
+
+A BERT embeddings vectorization addresses many of the drawbacks of the TF-IDF vectorizer, in that the bidirectional self-attention provides contextual awareness between tokens. A model will be able to determine that two synonymous GO terms such as "saposin" and "sphingolipid activator protein activity" are contextually linked through the distribution learned from the training data.
+
+This process is entirely dependent on the training of the model and is difficult to quantify or tune. As seen in the experimental data, the BioBERT model often scored poorly on recall metrics. The cost of fine tuning the model is significant, requiring heavy computational loads and a massive amount of data. The potential effectiveness of the BERT based approach is high, but the cost of reaching that effectiveness is also much higher than that of the TF-IDF approach.
+
+Even once trained, the model requires significant computation to vectorize the entire corpus; untested but anecdotally hours versus the TF-IDF vectorization's minutes. However, adding a document to the corpus is linear, due to the independence of the vectorization from the corpus. Within the specific implementation of the BertEmbeddingsVectorizer, the truncation of long documents means partial encoding and loss of potentially valuable information; this is a time and priority limitation, rather than a downside of the method.
+
 \section{Personal Assessment}
+
 \section{Conclusion}
 
 \bibliographystyle{plain}
