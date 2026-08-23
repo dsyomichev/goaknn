@@ -24,14 +24,14 @@ SCRIPT_NAME = Path(__file__).stem
 CACHE_DIR = Path(__file__, "../../data/cache/").resolve()
 MEMORY_DIR = CACHE_DIR.joinpath("memory/").resolve()
 
-PARAM_GRID = {"classifier__n_labels": [5, 10, 20]}
+PARAM_GRID = {
+    "classifier__n_neighbors": [25, 50, 100, 200],
+    "classifier__e_amplification": [1, 3, 5],
+    "classifier__n_labels": [5, 10, 20],
+}
 
-N_LABELS = 20
 N_JOBS = -1
 N_SPLITS = 10
-N_NEIGHBORS = 25
-
-E_AMPLIFICATION = 3
 
 RANDOM_STATE = 0
 
@@ -58,6 +58,8 @@ def main(connection, method):
     contents, _ = client.get_citations()
     _, annotations = client.get_annotations_in("citations")
 
+    m_neighbors = max(PARAM_GRID["classifier__n_neighbors"])
+
     if method == "bert":
         cursor = connection.execute(SELECT_CONTENT_EMBEDDING_MAPPING)
         mapping = {content: pickle.loads(data) for content, data in cursor}
@@ -66,12 +68,7 @@ def main(connection, method):
     else:
         transformer = TfidfVectorizer(tokenizer=tokenize, token_pattern=None)
 
-    classifier = OntologyClassifier(
-        n_neighbors=N_NEIGHBORS,
-        e_amplification=E_AMPLIFICATION,
-        n_jobs=N_JOBS,
-        memory=memory,
-    )
+    classifier = OntologyClassifier(n_jobs=N_JOBS, m_neighbors=m_neighbors, memory=memory)
 
     steps = [("transformer", transformer), ("classifier", classifier)]
     pipeline = Pipeline(steps, memory=memory if method == "tfidf" else None)

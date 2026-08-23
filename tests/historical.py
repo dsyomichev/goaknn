@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 from sklearn.feature_extraction.text import TfidfVectorizer
 from joblib import Memory
+from sklearn.pipeline import Pipeline
 
 from lib.OntologyClassifier import OntologyClassifier
 from lib.preprocess import tokenize
@@ -44,10 +45,10 @@ def init_custom_score(relations):
     def custom_score(classifier, X_test, y_true):
         y_pred, _ = classifier.predict(X_test)
 
-        hp, hr, hf = hp_hr_hf(y_true, y_pred, relations)
-        mrr, mar, f = mrr_mar_f(y_true, y_pred)
+        _, _, hf = hp_hr_hf(y_true, y_pred, relations)
+        _, _, f = mrr_mar_f(y_true, y_pred)
 
-        return {"hp": hp, "hr": hr, "hf": hf}, {"mrr": mrr, "mar": mar, "f": f}
+        return {"hf": hf, "f": f}
 
     return custom_score
 
@@ -145,6 +146,9 @@ def main(connection, method):
         ignore_exact=True,
     )
 
+    steps = [("transformer", transformer), ("classifier", classifier)]
+    pipeline = Pipeline(steps, memory=memory if method == "tfidf" else None)
+
     result = {}
 
     train_test_split_generator = train_test_split_temporal(client, start=SPLIT_TEMPORAL_START, step=SPLIT_TEMPORAL_STEP)
@@ -152,18 +156,13 @@ def main(connection, method):
     for i, (X_train, X_test, y_train, y_test) in enumerate(train_test_split_generator):
         year = SPLIT_TEMPORAL_START + i
 
-        transformer.fit(X_train, y_train)
+        pipeline.fit(X_train, y_train)
 
-        X_train_t = transformer.transform(X_train)
-        X_test_t = transformer.transform(X_test)
+        scores = custom_score(pipeline, X_test, y_test)
 
-        classifier.fit(X_train_t, y_train)
+        print(year, scores)
 
-        hierarchical, exact = custom_score(classifier, X_test_t, y_test)
-
-        print(year, hierarchical, exact)
-
-        result[year] = {"hierarchical": hierarchical, "exact": exact}
+        result[year] = scores
 
     output_file = Path.joinpath(CACHE_DIR, f"{method}_{SCRIPT_NAME}.json")
     with open(output_file, "w") as file:

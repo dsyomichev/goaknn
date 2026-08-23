@@ -30,7 +30,6 @@ PARAM_GRID = {
     "classifier__n_labels": [5, 10, 20],
 }
 
-N_LABELS = 20
 N_JOBS = -1
 N_SPLITS = 10
 
