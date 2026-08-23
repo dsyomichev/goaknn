@@ -16,10 +16,10 @@
 \theoremstyle{definition}
 \newtheorem*{remark}{Remark}
 
-\title{Your title}
-\author{Anonymous}
+\title{GOA-KNN: Electronic Annotation of Gene Ontology Terms}
+\author{Daniel Syomichev}
 
-\newcommand{\Programme}{Your MSc Programme}
+\newcommand{\Programme}{Data Science and Analytics}
 % Computational Finance students: uncomment the next line
 %\twodepartmentstrue
 
@@ -29,23 +29,75 @@
 \declaration
 
 \begin{abstract}
-  Your abstract goes here.
 \end{abstract}
 
-\section{Section one}
+\section{Introduction}
+\subsection{The Gene Ontology}
+\subsection{Annotating Biological Text}
+\subsection{GOCat and Electronic Annotation}
 
-This is a sample section.
+\section{Literature Overview}
 
-\section{Section two}
 
-An example of a reference:
-\cite{hastie/etal:2009}.
+\subsection{Vectorization}
 
-\section{Section three}
-\section{Section four}
-\section{Section five}
-\section{Section six}
-\section{Section seven}
+Prior to classification, the arbitrary length documents must be translated into a \(p\) dimensional vector space for which the distance between two vectors \(v_1\) and \(v_2\) can be computed.  The program provides two distinct methods to achieve this task, the TfidfVectorizer from SKLearn, and a custom BertEmbeddingsVectorizer which implements the SKLearn transformer interface in order to fully integrate into an SKLearn workflow.
+
+\subsubsection{Text Preprocessing}
+
+Used only in the TF-IDF vectorization process, tokenization standardizes the vocabulary of the corpus, and prevents commonly used words that carry minimal meaning from dominating the frequency aggregates. The general process follows that of Gobeill et al. \cite{Gobeill:2013}, though slightly more complex.
+
+The first stage of this process is the removal of apostrophes, punctuation unique in that it appears within a word and cannot be treated as a separator. This is important because the tokenization stage collects words which contain at least a single alphabetical and any number of numerical characters, split by whitespace or punctuation.
+
+Alphabetical tokens are reduced to root form using the Porter stemming algorithm \cite{Porter:1980}. By combining the variants of a token into a single feature, the dimensionality of the vector space is minimized. Alphanumerical tokens are deliberately not stemmed, as the algorithm incorrectly strips characters from certain words, which then lose contextual meaning. To provide a concrete example using a term from the GO:
+
+\[\textnormal{Rpd3S complex} \rightarrow \{\textnormal{rpd3s}, \textnormal{complex}\} \rightarrow  \{\textnormal{rpd3}, \textnormal{complex}\}\]
+
+The preprocessing pipeline is utilized symmetrically across vectorization points within the program, meaning training and testing inputs are tokenized identically.
+
+\subsubsection{TF-IDF}
+
+
+
+\subsection{Classification}
+
+The main prediction mechanism of the program utilizes a brute-force KNN algorithm provided by SKLearn's NearestNeighbors estimator to calculate the distances from the vectorized test document to each document vector in the corpus, followed by a weighed voting process to rank each of the predicted terms.
+
+\subsubsection{Distance Metrics}
+
+Rather than computing a standard Euclidean distance, the algorithm computes a cosine distance \(s\), defined by:
+
+\[ s = 1 -  \frac{A \cdot B}{\Vert A \Vert \Vert B \Vert}\ \textnormal{where} \  s \in [0, 2] \]
+
+In this representation, the distance metric is a method of vector orientation as opposed to magnitude, and is a simple remapping of the cosine similarity. While not a true distance metric, it is a commonly used representation of the semantic similarity of text documents. \cite{You:2025}.
+
+Unlike the Euclidean distance, the cosine distance is invariant to magnitude, neutralizing the influence of the length and absolute frequency of terms in the document. The main contributing parameter of the metric becomes the distribution of terms across a document vector, heuristically encoding semantic meaning. \cite{You:2025}.
+
+\subsubsection{Neighbor Voting}
+The KNN algorithm computes an ordered sequence of document/distance pairs \(\{(d_k, s_k) : k \in [1, K]\}\) for a test document \(d_{test}\) such that \(s_k \in [0,2]\). This sequence represents the prediction and can be unpacked into the sequences of documents \(D_K\) and distances \(S_K\). Let the sequence of scores be the transformation of distances defined by:
+
+\[ S'_K = \{ (1-s_k)^{\rho} \in [-1, 1]\}\ \textnormal{for} \ \rho \in \{1,3,5,...\} \]
+
+This process reverts the distance back to a similarity, and then takes it to an exponent \(\rho\); a method proposed by Breese et al. \cite{Breese:1998} This technique emphasizes closer matches while further punishing further matches. In order to prevent sign degeneration, \(\rho\) must be an odd integer.
+
+ With \(T_d\) as the set of terms annotated to a document \(d\), the score for a term \(t\) is calculated by:
+
+\[ score(t) = \sum_{(d_k, s'_k)}s'_k\ [t \in T_{d_k}]  \]
+
+where \([t \in T_{d_k}]\) is a conditional statement which evaluates to one if the condition is true, and is otherwise zero. Each term annotated to a document in the prediction set is scored and then the list of terms is sorted by the aggregate score, representing the final prediction sequence \(T_{d_{test}}\).
+
+
+
+
+
+\section{Experiment}
+\subsection{Hyperparameter Tuning}
+\subsection{Hierarchical Metrics}
+\subsection{Temporal Evolution}
+
+\section{Drawbacks and Flaws}
+\section{Personal Assessment}
+\section{Conclusion}
 
 \bibliographystyle{plain}
 \bibliography{bibliography}
