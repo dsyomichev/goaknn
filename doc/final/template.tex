@@ -47,11 +47,11 @@ Prior to classification, the arbitrary length documents must be translated into 
 
 \subsubsection{Text Preprocessing}
 
-Used only in TF-IDF vectorization, the tokenization process standardizes the vocabulary of the corpus, and prevents commonly used words that carry minimal meaning from dominating the frequency aggregates. The general process follows that of Gobeill et al. \cite{Gobeill:2013}, though slightly more complex than described in that work.
+Used only in TF-IDF vectorization, the tokenization process standardizes the vocabulary of the corpus, and prevents commonly used words that carry minimal meaning from dominating the frequency aggregates. The general process follows that of Gobeill et al. \cite{gobeill/2013/managing}, though slightly more complex than described in that work.
 
 The first stage of this process is the removal of apostrophes, punctuation unique in that it appears within a word and cannot be treated as a separator. This is important because the tokenization stage collects words which contain at least a single alphabetical and any number of numerical characters, split by whitespace or punctuation.
 
-Alphabetical tokens are reduced to root form using the Porter stemming algorithm \cite{Porter:1980}. By combining the variants of a token into a single feature, the dimensionality of the vector space is minimized. Alphanumerical tokens are deliberately not stemmed as the algorithm incorrectly strips characters from certain tokens, which then partially lose contextual meaning. To provide a concrete example using a term from the GO:
+Alphabetical tokens are reduced to root form using the Porter stemming algorithm \cite{porter/1980/algorithm}. By combining the variants of a token into a single feature, the dimensionality of the vector space is minimized. Alphanumerical tokens are deliberately not stemmed as the algorithm incorrectly strips characters from certain tokens, which then partially lose contextual meaning. To provide a concrete example using a term from the GO:
 
 \[\textnormal{"Rpd3S complex"} \rightarrow \{\textnormal{rpd3s}, \textnormal{complex}\} \rightarrow  \{\textnormal{rpd3}, \textnormal{complex}\}\]
 
@@ -59,7 +59,7 @@ Once the tokens have been stemmed, they are filtered against a stop-word list, w
 
 \subsubsection{Term and Inverse Document Frequency}
 
-In the TF-IDF format, documents are represented as sparse vectors with dimensionality equal to the number of tokens in the corpus vocabulary. Each feature is equivalent to the representation of a term within the document, weighed by the representation of the term across the corpus. Adapting the description from Robertson \cite{Robertson:2004}, a term appearing in many documents, such as "protein" across the corpus of article abstracts, is not a good differentiator of documents. This implies that the term's impact on a query should be minimal.
+In the TF-IDF format, documents are represented as sparse vectors with dimensionality equal to the number of tokens in the corpus vocabulary. Each feature is equivalent to the representation of a term within the document, weighed by the representation of the term across the corpus. Adapting the description from Robertson \cite{robertson/2004/understanding}, a term appearing in many documents, such as "protein" across the corpus of article abstracts, is not a good differentiator of documents. This implies that the term's impact on a query should be minimal.
 
 A corpus \(D\) is a set of documents \(d = \{t_1, t_2, t_3,...\}\), each a bag of terms such that \(t \in V_D\), the vocabulary of the corpus. The vectorizer is fit to a corpus by determining \(V_D\) and the inverse document frequency vector \(f = (f_1, f_2, f_3, ...)\) such that
 
@@ -73,13 +73,13 @@ Then the vectorized form of a document \(d'\) is computed using \(d'_i = f_ig^d_
 
 \subsubsection{Embeddings}
 
-The second vectorization method utilizes a pretrained model to encode documents as dense vectors in lieu of the sparse representation of TF-IDF vectorization. The model chosen as the default for this project was BiomedBERT \cite{Gu:2020}, a BERT \cite{Devlin:2018} variant trained from scratch on abstracts from PubMed and full text articles from PubMedCentral. BiomedBERT stands out in that it was trained using a domain-specific methodology; meaning the model was trained from scratch, rather than tuned from a general domain training set. Gu et al. claim that this methodology is better suited towards biomedical text analysis since it deviates so heavily from general domain text.
+The second vectorization method utilizes a pretrained model to encode documents as dense vectors in lieu of the sparse representation of TF-IDF vectorization. The model chosen as the default for this project was BiomedBERT \cite{gu/2021/domainspecific}, a BERT \cite{devlin/2018/bert} variant trained from scratch on abstracts from PubMed and full text articles from PubMedCentral. BiomedBERT stands out in that it was trained using a domain-specific methodology; meaning the model was trained from scratch, rather than tuned from a general domain training set. Gu et al. claim that this methodology is better suited towards biomedical text analysis since it deviates so heavily from general domain text.
 
 Utilizing the Transformers library from HuggingFace, the model is automatically initialized with the correct configuration, based on the provided model's name or path. A batch of documents is tokenized, each document transformed into a sequence of tokens, truncated to the maximum sequence length tolerated by the model. Each sequence shorter than the maximum sequence length across the batch is padded, ensuring the batch of sequences is rectangular.
 
-The BERT model architecture uses bidirectional self-attention, meaning each token attends to the context across the entire sequence. This ensures each token embedding is a reflection of the token's context within the document.  The vectors of the last hidden state are a per-token representation, and are aggregated by the mean-pooling strategy described by Reimers et al \cite{Reimers:2019}. To remove the influence of padding tokens, the attention mask is used to zero out non-contributing vectors from the final mean-pooled result. \cite{Reimers:2019}
+The BERT model architecture uses bidirectional self-attention, meaning each token attends to the context across the entire sequence. This ensures each token embedding is a reflection of the token's context within the document.  The vectors of the last hidden state are a per-token representation, and are aggregated by the mean-pooling strategy described by Reimers et al \cite{reimers/2019/sentencebert}. To remove the influence of padding tokens, the attention mask is used to zero out non-contributing vectors from the final mean-pooled result. \cite{reimers/2019/sentencebert}
 
-Given a batch \(D\) of documents \(d = \{t_1, t_2, t_3, ...\}\), each a sequence of tokens with attention mask \(a^d = (a^d_1, a^d_2, a^d_3, ...)\) such that \(a^d_i \in \{0, 1\}\), the model returns a sequence of embedding vectors \(e^d = \{e^d_1, e^d_2, e^d_3,...\}\) where \(e^d_i \in \mathbb{R}^{768}\). \cite{Gu:2018}\cite{Devlin:2018} The resulting document embedding vector is the mean pool of each token vector, with respect to the attention mask:
+Given a batch \(D\) of documents \(d = \{t_1, t_2, t_3, ...\}\), each a sequence of tokens with attention mask \(a^d = (a^d_1, a^d_2, a^d_3, ...)\) such that \(a^d_i \in \{0, 1\}\), the model returns a sequence of embedding vectors \(e^d = \{e^d_1, e^d_2, e^d_3,...\}\) where \(e^d_i \in \mathbb{R}^{768}\). \cite{gu/2021/domainspecific}\cite{devlin/2018/bert} The resulting document embedding vector is the mean pool of each token vector, with respect to the attention mask:
 
 \[v^d = \frac{\sum_{i} e^d_ia^d_i}{\sum_{i} a^d_i}\]
 
@@ -95,16 +95,16 @@ Rather than computing a standard Euclidean distance, the algorithm computes a co
 
 \[ s = 1 -  \frac{A \cdot B}{\Vert A \Vert \Vert B \Vert}\ \textnormal{where} \  s \in [0, 2] \]
 
-In this representation, the distance metric is a method of vector orientation as opposed to magnitude, and is a simple remapping of the cosine similarity. While not a true distance metric, it is a commonly used representation of the semantic similarity of text documents. \cite{You:2025}.
+In this representation, the distance metric is a method of vector orientation as opposed to magnitude, and is a simple remapping of the cosine similarity. While not a true distance metric, it is a commonly used representation of the semantic similarity of text documents. \cite{you/2025/semantics}.
 
-Unlike the Euclidean distance, the cosine distance is invariant to magnitude, neutralizing the influence of the length and absolute frequency of terms in the document. The main contributing parameter of the metric becomes the distribution of terms across a document vector, heuristically encoding semantic meaning. \cite{You:2025}.
+Unlike the Euclidean distance, the cosine distance is invariant to magnitude, neutralizing the influence of the length and absolute frequency of terms in the document. The main contributing parameter of the metric becomes the distribution of terms across a document vector, heuristically encoding semantic meaning. \cite{you/2025/semantics}.
 
 \subsubsection{Neighbor Voting}
 The KNN algorithm computes an ordered sequence of document/distance pairs \(\{(d_k, s_k) : k \in [1, K]\}\) for a test document \(d_{test}\) such that \(s_k \in [0,2]\). This sequence represents the prediction and can be unpacked into the sequences of documents \(D_K\) and distances \(S_K\). Let the sequence of scores be the transformation of distances defined by:
 
 \[ S'_K = \{ (1-s_k)^{\rho} \in [-1, 1]\}\ \textnormal{for} \ \rho \in \{1,3,5,...\} \]
 
-This process reverts the distance back to a similarity, and then takes it to an exponent \(\rho\); a method proposed by Breese et al. \cite{Breese:1998} This technique emphasizes closer matches while further punishing further matches. In order to prevent sign degeneration, \(\rho\) must be an odd integer.
+This process reverts the distance back to a similarity, and then takes it to an exponent \(\rho\); a method proposed by Breese et al. \cite{bresse/1998/emprirical} This technique emphasizes closer matches while further punishing further matches. In order to prevent sign degeneration, \(\rho\) must be an odd integer.
 
  With \(T_d\) as the set of GO terms annotated to a document \(d\), the score for a term \(t\) is calculated by:
 
