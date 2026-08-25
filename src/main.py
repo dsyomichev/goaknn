@@ -2,6 +2,7 @@ import sys
 import re
 
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import StandardScaler
 
 from lib.OntologyClassifier import OntologyClassifier
 from lib.BertEmbeddingsVectorizer import BertEmbeddingsVectorizer
@@ -95,16 +96,24 @@ def main(connection):
             transformer.idf_ = idf
 
         else:
+            scaler = StandardScaler(with_std=False)
             transformer = BertEmbeddingsVectorizer(model_name=MODEL_NAME).fit([])
 
             vectors, ids = client.get_embeddings()
             _, annotations = client.get_annotations_in("embeddings")
 
+            vectors = scaler.fit_transform(vectors)
+
         classifier = OntologyClassifier(n_neighbors=N_NEIGHBORS, n_labels=N_LABELS, n_jobs=N_JOBS)
 
         classifier.fit(vectors, annotations)
 
-        test_vectors = transformer.transform(args.target)
+        if args.method == "tfidf":
+            test_vectors = transformer.transform(args.target)
+
+        else:
+            test_vectors = transformer.transform(args.target)
+            test_vectors = scaler.transform(test_vectors)
 
         pred_term_ids, pred_term_scores = classifier.predict(test_vectors)
 

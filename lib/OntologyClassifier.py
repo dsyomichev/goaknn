@@ -60,15 +60,12 @@ class OntologyClassifier(BaseEstimator):
             result = {}
 
             if self.ignore_exact:
-                ignore_mask = ~numpy.isclose(pred_distances, numpy.zeros_like(pred_distances))
+                ignore_mask = ~numpy.isclose(pred_distances, numpy.zeros_like(pred_distances), atol=1e-5)
                 pred_distances, pred_indices = pred_distances[ignore_mask], pred_indices[ignore_mask]
 
             pred_distances, pred_indices = pred_distances[: self.n_neighbors], pred_indices[: self.n_neighbors]
 
-            max_dist = 0 if not len(pred_distances) else numpy.max(pred_distances)
-            scaled_distances = numpy.zeros_like(pred_distances) if not max_dist else pred_distances / max_dist
-
-            similarities = (1 - scaled_distances) ** self.e_amplification
+            similarities = (1 - pred_distances) ** self.e_amplification
 
             for i, similarity in zip(pred_indices, similarities):
                 for label in self.y_train_[i]:

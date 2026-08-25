@@ -7,6 +7,7 @@ import json
 from argparse import ArgumentParser
 from pathlib import Path
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import StandardScaler
 from joblib import Memory
 from sklearn.pipeline import Pipeline
 
@@ -17,7 +18,7 @@ from src.db.execute import execute
 from src.db.DatabaseClient import DatabaseClient
 
 from tests.util.mock import MockVectorizer, SELECT_CONTENT_EMBEDDING_MAPPING
-from tests.util.metrics import hp_hr_hf, mrr_mar_f
+from tests.util.metrics import hp_hr_hf, mrr_mar
 from tests.util.serializers import primitive
 
 SCRIPT_NAME = Path(__file__).stem
@@ -33,24 +34,48 @@ SELECT_ANNOTATIONS_WITH_DATES_IN = """
     ORDER BY date ASC
 """
 
-N_NEIGHBORS = 200
-N_LABELS = 5
 N_JOBS = -1
+N_LABELS = 20
 
-E_AMPLIFICATION = 3
+BEST_PARAMS = {
+    "bert": {
+        "exact": {
+            "n_neighbors": 50,
+            "e_amplification": 5,
+        },
+        "hierarchical": {
+            "n_neighbors": 50,
+            "e_amplification": 5,
+        },
+    },
+    "tfidf": {
+        "exact": {
+            "n_neighbors": 200,
+            "e_amplification": 3,
+        },
+        "hierarchical": {},
+    },
+}
 
 
-def init_custom_score(relations):
+def init_hierarchical_score(relations):
 
-    def custom_score(classifier, X_test, y_true):
+    def hierarchical_score(classifier, X_test, y_true):
         y_pred, _ = classifier.predict(X_test)
 
-        _, _, hf = hp_hr_hf(y_true, y_pred, relations)
-        _, _, f = mrr_mar_f(y_true, y_pred)
+        hp, hr, hf = hp_hr_hf(y_true, y_pred, relations)
 
-        return {"hf": hf, "f": f}
+        return {"hp": hp, "hr": hr, "hf": hf}
 
-    return custom_score
+    return hierarchical_score
+
+
+def exact_score(classifier, X_test, y_true):
+    y_pred, _ = classifier.predict(X_test)
+
+    mrr, mar = mrr_mar(y_true, y_pred)
+
+    return {"mrr": mrr, "mar": mar}
 
 
 def train_test_split_temporal(client, start=None, step=1):
@@ -122,12 +147,15 @@ def train_test_split_temporal(client, start=None, step=1):
         yield split_X_train, split_X_test, split_y_train, split_y_test
 
 
-def main(connection, method):
+def main(connection, method, metric):
     client = DatabaseClient(connection)
     memory = Memory(MEMORY_DIR, verbose=0)
 
-    relations = client.get_relations()
-    custom_score = init_custom_score(relations)
+    if metric == "hierarchical":
+        relations = client.get_relations()
+        custom_score = init_hierarchical_score(relations)
+    else:
+        custom_score = exact_score
 
     if method == "bert":
         cursor = connection.execute(SELECT_CONTENT_EMBEDDING_MAPPING)
@@ -139,14 +167,16 @@ def main(connection, method):
 
     classifier = OntologyClassifier(
         n_jobs=N_JOBS,
-        n_neighbors=N_NEIGHBORS,
+        n_neighbors=BEST_PARAMS[method][metric]["n_neighbors"],
         n_labels=N_LABELS,
-        e_amplification=E_AMPLIFICATION,
+        e_amplification=BEST_PARAMS[method][metric]["e_amplification"],
         memory=memory,
         ignore_exact=True,
     )
 
-    steps = [("transformer", transformer), ("classifier", classifier)]
+    scaler = StandardScaler(with_std=False) if method == "bert" else "passthrough"
+
+    steps = [("transformer", transformer), ("scaler", scaler), ("classifier", classifier)]
     pipeline = Pipeline(steps, memory=memory if method == "tfidf" else None)
 
     result = {}
@@ -164,7 +194,7 @@ def main(connection, method):
 
         result[year] = scores
 
-    output_file = Path.joinpath(CACHE_DIR, f"{method}_{SCRIPT_NAME}.json")
+    output_file = Path.joinpath(CACHE_DIR, f"historical_{method}_{metric}.json")
     with open(output_file, "w") as file:
         json.dump(result, file, default=primitive, indent=4)
 
@@ -173,8 +203,9 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore")
 
     parser = ArgumentParser()
-    parser.add_argument("target", choices=["tfidf", "bert"])
+    parser.add_argument("method", choices=["tfidf", "bert"])
+    parser.add_argument("metric", choices=["exact", "hierarchical"])
 
     namespace = parser.parse_args(sys.argv[1:])
 
-    execute(main, method=namespace.target)
+    execute(main, method=namespace.method, metric=namespace.metric)
