@@ -5,7 +5,7 @@ import functools
 from matplotlib import pyplot
 from pathlib import Path
 
-CACHE_DIR = Path(__file__, "../../../data/cache/backup").resolve()
+CACHE_DIR = Path(__file__, "../../../data/cache").resolve()
 
 PARAMETER_KEY_MAP = {"classifier__n_neighbors": "K", "classifier__e_amplification": "Amplification"}
 

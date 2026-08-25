@@ -38,23 +38,8 @@ N_JOBS = -1
 N_LABELS = 20
 
 BEST_PARAMS = {
-    "bert": {
-        "exact": {
-            "n_neighbors": 50,
-            "e_amplification": 5,
-        },
-        "hierarchical": {
-            "n_neighbors": 50,
-            "e_amplification": 5,
-        },
-    },
-    "tfidf": {
-        "exact": {
-            "n_neighbors": 200,
-            "e_amplification": 3,
-        },
-        "hierarchical": {},
-    },
+    "bert": {"n_neighbors": 50, "e_amplification": 5},
+    "tfidf": {"n_neighbors": 200, "e_amplification": 3},
 }
 
 
@@ -167,9 +152,9 @@ def main(connection, method, metric):
 
     classifier = OntologyClassifier(
         n_jobs=N_JOBS,
-        n_neighbors=BEST_PARAMS[method][metric]["n_neighbors"],
+        n_neighbors=BEST_PARAMS[method]["n_neighbors"],
         n_labels=N_LABELS,
-        e_amplification=BEST_PARAMS[method][metric]["e_amplification"],
+        e_amplification=BEST_PARAMS[method]["e_amplification"],
         memory=memory,
         ignore_exact=True,
     )
