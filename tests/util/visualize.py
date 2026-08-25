@@ -58,21 +58,24 @@ def plot_hyperparameter_comparison(result, n_labels=20):
     return figure
 
 
-def plot_historical_comparison(result_tfidf, result_bert):
+def plot_historical_comparison(result_tfidf, result_bert, metric="exact"):
     figure, axes = pyplot.subplots(2, 1)
 
     x = numpy.array([int(key) for key in result_tfidf.keys()])
 
     xmin, xmax = numpy.min(x) - 1, numpy.max(x) + 1
-    ymin, ymax = 0.1, 0.6
+    ymin, ymax = 0.1, 0.9
 
-    for i, (axis, metric) in enumerate(zip(axes, ["mrr", "mar"])):
-        y_tfidf = numpy.array([value[metric] for value in result_tfidf.values()])
-        y_bert = numpy.array([value[metric] for value in result_bert.values()])
+    metric_keys = ["mrr", "mar"] if metric == "exact" else ["hp", "hr"]
+    metric_labels = ["MRR", "R20"] if metric == "exact" else ["HP", "HR20"]
+
+    for i, (axis, key) in enumerate(zip(axes, metric_keys)):
+        y_tfidf = numpy.array([value[key] for value in result_tfidf.values()])
+        y_bert = numpy.array([value[key] for value in result_bert.values()])
 
         axis.set_xticks(x)
 
-        axis.set_ylabel("MRR" if metric == "mrr" else "R20")
+        axis.set_ylabel(metric_labels[0] if key == metric_keys[0] else metric_labels[1])
         axis.set_xlabel("Year" if i else "")
         axis.set_xlim(xmin, xmax)
 
@@ -86,6 +89,12 @@ def plot_historical_comparison(result_tfidf, result_bert):
     return figure
 
 
+def plot_tfidf_versus_bert_hf(result_tfidf, result_bert):
+
+    print(numpy.array(result_tfidf["mean_test_hf"]) < numpy.array(result_bert["mean_test_hf"]))
+
+
+"""
 for method in ["tfidf", "bert"]:
     with open(CACHE_DIR.joinpath(f"hyperparameters_{method}_hierarchical.json")) as file:
         result = json.load(file)
@@ -98,6 +107,7 @@ for method in ["tfidf", "bert"]:
     output_path = Path.joinpath(CACHE_DIR, f"hyperparameters_{method}.png")
 
     figure.savefig(output_path)
+"""
 
 with open(CACHE_DIR.joinpath(f"historical_tfidf_exact.json")) as file:
     result_tfidf = json.load(file)
@@ -105,10 +115,42 @@ with open(CACHE_DIR.joinpath(f"historical_tfidf_exact.json")) as file:
 with open(CACHE_DIR.joinpath(f"historical_bert_exact.json")) as file:
     result_bert = json.load(file)
 
-figure = plot_historical_comparison(result_tfidf, result_bert)
+figure = plot_historical_comparison(result_tfidf, result_bert, metric="exact")
 
 figure.set_size_inches((12, 8))
 
-output_path = Path.joinpath(CACHE_DIR, f"historical.png")
+output_path = Path.joinpath(CACHE_DIR, f"historical_exact.png")
 
 figure.savefig(output_path)
+
+with open(CACHE_DIR.joinpath(f"historical_tfidf_hierarchical.json")) as file:
+    result_tfidf = json.load(file)
+
+with open(CACHE_DIR.joinpath(f"historical_bert_hierarchical.json")) as file:
+    result_bert = json.load(file)
+
+figure = plot_historical_comparison(result_tfidf, result_bert, metric="hierarchical")
+
+figure.set_size_inches((12, 8))
+
+output_path = Path.joinpath(CACHE_DIR, f"historical_hierarchical.png")
+
+figure.savefig(output_path)
+
+
+"""
+
+with open(CACHE_DIR.joinpath(f"hyperparameters_tfidf_hierarchical.json")) as file:
+    result_tfidf = json.load(file)
+
+with open(CACHE_DIR.joinpath(f"hyperparameters_bert_hierarchical.json")) as file:
+    result_bert = json.load(file)
+
+figure = plot_tfidf_versus_bert_hf(result_tfidf, result_bert)
+
+# figure.set_size_inches((12, 8))
+
+# output_path = Path.joinpath(CACHE_DIR, f"historical.png")
+
+# figure.savefig(output_path)
+"""
