@@ -6,6 +6,8 @@ from matplotlib import pyplot
 from matplotlib.patches import Patch
 from pathlib import Path
 
+from src.db.execute import execute
+
 CACHE_DIR = Path(__file__, "../../../data/cache").resolve()
 
 PARAMETER_KEY_MAP = {
@@ -13,6 +15,12 @@ PARAMETER_KEY_MAP = {
     "classifier__e_amplification": "Amplification",
     "classifier__n_labels": "Limit",
 }
+
+SELECT_TERM_ID_COUNT = """
+    SELECT COUNT(term_id) FROM annotations
+    GROUP BY term_id
+    ORDER BY COUNT(term_id) DESC
+"""
 
 
 def plot_hyperparameter_comparison(result, n_labels=20):
@@ -155,6 +163,20 @@ def plot_tfidf_versus_bert_hf(result_tfidf, result_bert):
     return figure
 
 
+def plt_annotation_term_count(connection):
+    figure, axis = pyplot.subplots()
+
+    y = connection.execute(SELECT_TERM_ID_COUNT).fetchall()
+    x = numpy.linspace(0, len(y) - 1, len(y))
+
+    axis.set_xlabel("Term Index")
+    axis.set_ylabel("Appearances in Annotations")
+
+    axis.plot(x, y, color="black")
+
+    return figure
+
+
 for method in ["tfidf", "bert"]:
     with open(CACHE_DIR.joinpath(f"hyperparameters_{method}_hierarchical.json")) as file:
         result = json.load(file)
@@ -210,3 +232,11 @@ figure.set_size_inches((12, 4))
 output_path = Path.joinpath(CACHE_DIR, f"tfidf_versus_bert_hf.png")
 
 figure.savefig(output_path, bbox_inches="tight")
+
+figure = execute(plt_annotation_term_count)
+
+figure.set_size_inches(6, 6)
+
+output_path = Path.joinpath(CACHE_DIR, f"annotation_term_count.png")
+
+figure.savefig(output_path)

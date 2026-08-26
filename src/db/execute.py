@@ -10,6 +10,6 @@ def execute(proxy, **kwargs):
     connection = sqlite3.connect(DB_FILE)
 
     try:
-        proxy(connection, **kwargs)
+        return proxy(connection, **kwargs)
     finally:
         connection.close()
