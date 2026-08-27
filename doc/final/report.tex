@@ -1,6 +1,6 @@
 \documentclass[11pt]{article} % do not change this line
 \input{BigDataStyle.txt}      % do not change this line
-\usepackage{amsmath,amsfonts,amssymb,amsthm,latexsym,graphicx,array,multicol}
+\usepackage{amsmath,amsfonts,amssymb,amsthm,latexsym,graphicx,array,multicol,float}
 
 \emergencystretch=5mm
 \tolerance=400
@@ -198,7 +198,7 @@ Importantly, each term contributes equally to the average, so terms which are di
 
 \subsubsection{Hierarchical}
 
-The deficit of the above metrics is the lack of consideration for the relationship between terms. A term which sits one level above the expected term scores just as badly as a term which appears in a separate aspect altogether, which invalidates the ontology's structure entirely. Verspoor et al. demonstrated that the standard multi-label evaluation metrics of precision, recall and F-score report poor performance due to this lack of consideration \cite{verspoor/2006/categorization}, and propose extensions to these metrics which take the strength of the relationship between terms into account.
+The deficit of the above metrics is the lack of consideration for the relationship between terms. A term which sits one level above the expected term scores just as badly as a term which appears in a separate aspect altogether, which invalidates the ontology's structure entirely. Verspoor et al. demonstrated that the standard multi-label evaluation metrics of precision, recall and F-score report poor performance due to this lack of consideration \cite{verspoor/2006/categorization}, and propose extensions to these metrics which take the strength of the relationship between terms into account. Here ${\uparrow} t$ and ${\uparrow} \hat{t}$ represent the lineage expansions of a true and predicted term respectively. In plain words, these are the sets containing a term and all of it's ancestors.
 
 \begin{multicols}{2}
     \begin{equation}
@@ -250,7 +250,7 @@ Alphabetical tokens are reduced to root form using the Porter stemming algorithm
 
 \[\textnormal{"Rpd3S complex"} \rightarrow \{\textnormal{rpd3s}, \textnormal{complex}\} \rightarrow  \{\textnormal{rpd3}, \textnormal{complex}\}\]
 
-Once the tokens have been stemmed, they are filtered against a stop-word list, which contains some of the most common English language words. Both the Porter stemming implementation and the stop-word list are provided by the NLTK library \cite{loper/2009/natural}. The preprocessing pipeline is utilized symmetrically across vectorization points within the program, meaning training and testing inputs are tokenized identically.
+Once the tokens have been stemmed, they are filtered against a stop-word list, which contains some of the most common English language words. Both the Porter stemming implementation and the stop-word list are provided by the NLTK library \cite{loper/2009/natural}. The preprocessing pipeline is utilized symmetrically across vectorization points within the program, meaning training and testing inputs are tokenized identically. Due to the large number of repeated stemming inputs, the function is memoized using the \verb|@functools.cache| decorator.
 
 \subsubsection{Term and Inverse Document Frequency}
 
@@ -330,7 +330,7 @@ The distinct PMIDs appearing in the \verb|annotations| table are resolved to an 
 The batch response is contained in an XML document, which is used to extract the raw abstract text and map it to it's associated PMID. In the case that the abstract has additional formatting or is structured in multiple elements, the text is concatenated to construct a single uniform document, while empty abstracts are ignored. The parsed citation is a triple \verb|(id, content, date)| and the \verb|citations| table is keyed to the PMID of the publication.
 
 \subsubsection{Relevant Metadata}
-\begin{table}
+\begin{table}[H]
     \centering
     \begin{tabular}{|m{10em}|m{5em}|}
         \hline
@@ -350,7 +350,7 @@ The batch response is contained in an XML document, which is used to extract the
         Final Corpus Size & 202,638  \\
         \hline
     \end{tabular}
-    \caption{Database Metadata}
+    \caption{Metadata related to quantities of data used during experimentation. }
     \label{tab:metadata}
 \end{table}
 
@@ -358,7 +358,7 @@ In addition to Table \ref{tab:metadata}, article abstracts in the corpus span th
 
 Several properties of the data should also be noted. First, of 48,239 GO terms, only 28,185 are referenced by annotations. Due to the nature of the KNN algorithm, only 58\% of the potential label space is ever visible, meaning over 40\% of GO terms will never be predicted regardless of how well they match the input document. Second, the label space is incredibly imbalanced as seen in Figure \ref{fig:annotation_terms}. Only a small handful of terms are associated with a large majority of annotations, and thus can be expected to be predicted much more frequently.
 
-\begin{figure}
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.5\linewidth]{annotation_term_count.png}
     \caption{Term Index vs. Appearances}
@@ -367,43 +367,71 @@ Several properties of the data should also be noted. First, of 48,239 GO terms, 
 
 \subsection{Indexing }
 
-In order to prevent re-indexing each time a query is executed, there exist secondary tables within the database responsible for persistence of an index. Each vectorization method maintains it's own index,  and each is treated as a distinct branch in the programs execution path.
+In order to prevent re-indexing each time a query is executed, there exist secondary tables within the database responsible for persistence of an index. Each vectorization method maintains it's own index, and each is treated as a distinct branch in the programs execution path.
 
 The \verb|TfidfVectorizer| is persisted as two separate tables: \verb|vocabulary| and \verb|vectorizations|. The \verb|vocabulary| table stores the triples \verb|(token, position, value)| which indicate a token's position within the ordered vocabulary and its IDF value. The \verb|vectorizations| table stores the sparse matrix in COO format triples \verb|(id, position, value)| keyed on the PMID of the associated document. The sparse matrix is reconstructed and translated into CSR format, the standard used throughout SKLearn, on load. Importantly, the sparse matrix is never materialized, minimizing memory and transfer overhead.
 
 Contextual embeddings emitted by \verb|BertEmbeddingsTokenizer| are stored as a tuple \verb|(id, data)|. Each embedding, a vector in $\mathbb{R}^{768}$, is serialized using the Pickle utility and stored as byte blob. As such, no reconstruction of the vector is necessary upon re-initialization, simply de-serialization. Importantly, due to the anisotropic property of BERT embeddings, the embedding vectors are mean centered before any classification in accordance with the strategy described by Stollenwerk et al. \cite{stollenwerk/2026/output} using SKLearn's \verb|StandardScaler| without scaling to unit variance.
 
+\subsection{Hierarchical Evaluation}
+
+In addition to implementing the two evaluation metrics used by Gobiell et al. when testing GOCat \cite{gobeill/2013/managing}, the classifier is also evaluated using the hierarchical metrics described by Verspoor et al. \cite{verspoor/2006/categorization} by utilizing the relations within the GO. Each of the true and predicted terms are expanded to their full lineage by traversing the 'is a' and 'part of' relations. These relations imply a direct relationship between a child and parent term, as described by the GOC \cite{consortium/2025/gene}. The process is memoized in-memory using the \verb|@functools.cache| decorator to avoid repeating traversals along the graph. Using these expansions, the HP, HR, and HF scores are calculated according to the formulation previously described.
+
 \section{Experiment}
+
+Three experiments were conducted, and this section describes the results of these experiments, alongside an interpretation of these results based on the conducted research. Each type of metric described in the Research section is reported separately, as it has already been established that they cannot be compared against each other.
 
 \subsection{Hyperparameter Tuning}
 
-\begin{figure}
+There are a total of three hyperparameters which hold sway over the classifier: the number of neighbors $k$, the amplification exponent $\rho$ and the prediction truncation limit $l$. Using the SKLearn \verb|GridSearchCV|, an exhaustive search is performed over the values of $k \in \{ 25, 50, 100, 200 \}$, $\rho=\{1,3,5\}$ and $l=\{5,10,20\}$ across all 36 combinations. Each combination is evaluated over 10 randomly shuffled folds of the full 202,638 document corpus. A fixed random seed is provided in order to ensure identical shuffling for both vectorization methods.
+
+In order to reduce computation time, the \verb|OntologyClassifier| memoizes repeated calls of it's \verb|predict| method to disk. This is achieved by providing the classifier with the maximum value of $k$ across the search $k_{max}$, such that any call to the \verb|predict| internally computes the $k_{max}$ nearest neighbors for a given train and test set. This result is then truncated to the true value of $k$ before any scoring occurs, preserving the validity of the resulting prediction sequence. The memoization is accomplished through JobLib's \verb|Memory| interface, which hashes based on the input parameters of a function. This significantly reduced the running time of the exhaustive search, since the nearest neighbor calculation is performed brute-force, and the number of times this calculation needed to be carried out was reduced from 360 to 10.
+
+The test suite also implements a mock \verb|BertEmbeddingsVectorizer|, which is a wrapper of a simple dictionary based retrieval of a documents embedding by the documents content. The embeddings are precomputed once, and retrieved from the database upon initialization of the script. This prevents the search from re-computing each test documents embedding, and is a valid substitution because an embedding is independent of the overall corpus. In contrast, the \verb|TfidfVectorizer| is refitted for each fold in order to prevent leakage. Once again utilizing JobLib's \verb|Memory| interface, the resulting index and test document vectors are stored on disk, and simply retrieved for each fold as opposed to recomputing them.
+
+\subsubsection{Results}
+
+\begin{table}[H]
     \centering
-    \includegraphics[width=0.75\linewidth]{hyperparameters_tfidf.png}
-    \caption{Best Hyperparameters using TF-IDF Static Embeddings}
-    \label{fig:tfidf_hyperparam}
+    \begin{tabular}{| m{4em} | m{2em} | m{2em} | m{3em} | m{3em} | m{3em} | m{3em} | m{3em} |}
+        \hline
+        Method & $k$ & $\rho$ & MRR            & MAR            & HP             & HR             & HF             \\
+        \hline
+        \hline
+        TF-IDF & 100 & 3      & \textbf{0.448} & \textbf{0.386} & 0.284          & 0.829          & 0.397          \\
+        \hline
+        BERT   & 25  & 5      & \textbf{0.419} & \textbf{0.269} & 0.311          & 0.806          & 0.422          \\
+        \hline
+        \hline
+        TF-IDF & 200 & 1      & 0.442          & 0.357          & \textbf{0.299} & \textbf{0.840} & \textbf{0.413} \\
+        \hline
+        BERT   & 100 & 5      & 0.417          & 0.257          & \textbf{0.326} & \textbf{0.813} & \textbf{0.437} \\
+        \hline
+    \end{tabular}
+    \caption{Optimal hyperparameters for both vectorization methods over the MAR and HF metrics with fixed $l=20$.}
+    \label{tab:both_optimal_sel}
+\end{table}
+
+As evidenced by table \ref{tab:both_optimal_sel}, the vectorization methods each achieve better results across differing metrics. TF-IDF vectorization scored significantly better with the MAR metric, with a difference of about 0.117, and also outperforms the BERT method by 0.029 on the MRR metric. The interpretation becomes less clear with the hierarchical metrics, as the TF-IDF method outscores the BERT method in HR by 0.07, but is outscored by 0.027 on HP and 0.024 on HF. It is important to note that these patterns hold for the suboptimal hyperparameter values depicted by the non-bold columns of table \ref{tab:both_optimal_sel}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{hyperparameters_tfidf.png}
+    \caption{Hyperparameter trend for TF-IDF vectorization with non-depicted hyperparameters fixed. ($l=20$)}
+    \label{fig:tfidf_hyp_trend}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\linewidth]{hyperparameters_bert.png}
-    \caption{Best Hyperparameters using BERT Contextual Embeddings}
-    \label{fig:bert_hyperparam}
+    \includegraphics[width=1\linewidth]{hyperparameters_bert.png}
+    \caption{Hyperparameter trend for BERT vectorization with non-depicted hyperparameters fixed. ($l=20$)}
+    \label{fig:bert_hyp_trend}
 \end{figure}
+
+Trends for individual parameters are depicted by figures \ref{fig:tfidf_hyp_trend} and \ref{fig:bert_hyp_trend}.
+
 \subsection{Temporal Evolution}
 
-\begin{figure}
-    \centering
-    \includegraphics[width=0.75\linewidth]{historical_exact.png}
-    \caption{Psuedo-historical Comparison using MRR/R20}
-    \label{fig:historical_exact}
-\end{figure}
-\begin{figure}
-    \centering
-    \includegraphics[width=0.75\linewidth]{historical_hierarchical.png}
-    \caption{Psuedo-historical Comparison using HP/HR20}
-    \label{fig:historical_hierarchical}
-\end{figure}
 \section{Evaluation}
 
 \subsubsection{Vectorization Trade-offs}
@@ -423,6 +451,52 @@ Even once trained, the model requires significant computation to vectorize the e
 \section{Personal Assessment}
 
 \section{Conclusion}
+
+\section{Appendix}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{| m{2em} | m{2em} | m{4em} | m{4em} | m{4em} | m{4em} | m{4em} |}
+        \hline
+        $k$ & $\rho$ & MRR             & MAR             & HP              & HR              & HF              \\
+        \hline
+        \hline
+        200 & 3      & \textbf{0.4509} & 0.3845          & 0.2874          & 0.8326          & 0.4006          \\
+        \hline
+        100 & 3      & 0.4484          & \textbf{0.3861} & 0.2841          & 0.8285          & 0.3967          \\
+        \hline
+        200 & 1      & 0.4418          & 0.3569          & \textbf{0.2991} & 0.8398          & 0.4132          \\
+        \hline
+        200 & 1      & 0.4418          & 0.3569          & 0.2991          & \textbf{0.8398} & \textbf{0.4132} \\
+        \hline
+        200 & 1      & 0.4418          & 0.3569          & 0.2991          & \textbf{0.8398} & \textbf{0.4132} \\
+        \hline
+    \end{tabular}
+    \caption{Optimal hyperparameter values maximizing each available metric for the TF-IDF vectorization method with fixed $l=20$.}
+    \label{tab:bert_optimal}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{| m{2em} | m{2em} | m{4em} | m{4em} | m{4em} | m{4em} | m{4em} |}
+        \hline
+        $k$ & $\rho$ & MRR             & MAR             & HP              & HR              & HF              \\
+        \hline
+        \hline
+        50  & 5      & \textbf{0.4235} & 0.2677          & 0.3200          & 0.8132          & 0.4315          \\
+        \hline
+        25  & 5      & 0.4190          & \textbf{0.2688} & 0.3109          & 0.8059          & 0.4219          \\
+        \hline
+        200 & 5      & 0.4044          & 0.2351          & \textbf{0.3270} & 0.8071          & 0.4364          \\
+        \hline
+        100 & 5      & 0.4173          & 0.2565          & 0.3258          & \textbf{0.8133} & \textbf{0.4367} \\
+        \hline
+        100 & 5      & 0.4173          & 0.2565          & 0.3258          & \textbf{0.8133} & \textbf{0.4367} \\
+        \hline
+    \end{tabular}
+    \caption{Optimal hyperparameter values maximizing each available metric for the BERT vectorization method with fixed $l=20$.}
+    \label{tab:bert_optimal}
+\end{table}
 
 \bibliographystyle{plain}
 \bibliography{bibliography}
