@@ -1,6 +1,6 @@
 \documentclass[11pt]{article} % do not change this line
 \input{BigDataStyle.txt}      % do not change this line
-\usepackage{amsmath,amsfonts,amssymb,amsthm,latexsym,graphicx,array}
+\usepackage{amsmath,amsfonts,amssymb,amsthm,latexsym,graphicx,array,multicol}
 
 \emergencystretch=5mm
 \tolerance=400
@@ -26,14 +26,14 @@
 \begin{document}
 \maketitle
 
-\declaration
+\declaration;
 
 \begin{abstract}
 \end{abstract}
 
 \section{Introduction}
 
-The primary goal of this project is to provide a tool which, given an arbitrary biomedical text, returns a ranked list of Gene Ontology (GO) \cite{ashburner/2000/gene}\cite{consortium/2025/gene} terms that characterize the text. The program is intended as a direct substitute to the GOCat project by Gobeill et al. \cite{gobeill/2013/managing}, and functions on the identical premise that GO terms already attributed to a biomedical text can be used to infer the annotations of a new text through the use of the nearest-neighbors algorithm.
+The primary goal of this project is to provide a tool which, given an arbitrary biomedical text, returns a ranked list of Gene Ontology (GO) \cite{ashburner/2000/gene,consortium/2025/gene} terms that characterize the text. The program is intended as a direct substitute to the GOCat project by Gobeill et al. \cite{gobeill/2013/managing}, and functions on the identical premise that GO terms already attributed to a biomedical text can be used to infer the annotations of a new text through the use of the nearest-neighbors algorithm.
 
 \subsection{The Gene Ontology}
 
@@ -57,22 +57,21 @@ GOCat is no longer officially available; serving as the primary justification fo
 
 Presented below is a glossary which describe the terminology used throughout this report. In order disambiguate certain concepts, alternate words are utilized to represent different concepts with similar or same naming schemes.
 
-
 \begin{table}
     \centering
     \begin{tabular}{| m{7.5em} | m{15em} |}
-         \hline
-         Terminology&Description\\
-         \hline
-         \hline
-         term& Specifically used to reference a GO term.\\
-         \hline
-         token& Used to reference a term in any other context. (TF-IDF terms)\\
-         \hline
-         document& A biomedical text abstract.\\
-         \hline
-         vectorization& The vector representation of a document. \\
-         \hline
+        \hline
+        Terminology   & Description                                                   \\
+        \hline
+        \hline
+        term          & Specifically used to reference a GO term.                     \\
+        \hline
+        token         & Used to reference a term in any other context. (TF-IDF terms) \\
+        \hline
+        document      & A biomedical text abstract.                                   \\
+        \hline
+        vectorization & The vector representation of a document.                      \\
+        \hline
     \end{tabular}
     \caption{Terminology}
     \label{tab:terminology}
@@ -90,14 +89,13 @@ bert
 ststic embedding
 contextual embedding
 
-
 \section{Research}
 
 This section provides a detailed overview of the concepts used throughout the project. Specific implementation details will be omitted and described in the following section, providing a delineation between theory and application.
 
 \subsection{Term Frequency -- Inverse Document Frequency}
 
-In order to compute the scalar distance between two arbitrary text documents, they must be translated into some $p$ dimensional real vector space where the dot product is defined. There are a number of methods to achieve this, but the most applicable to this project is the TF-IDF method. An extension of the bag-of-words method \cite{kim/2019/multicotraining}, it translates each document into a vector with dimensionality equal to the number of tokens in the corpus vocabulary. Each feature is equivalent to the representation of a token within the document, weighed by the representation of the token across the corpus. Adapting the description from Robertson \cite{robertson/2004/understanding}, a token appearing in many documents, such as "protein" across the corpus of article abstracts, is not a good differentiator of documents and the feature attributed to the token within the vector representation should be small.
+In order to compute the scalar distance between two arbitrary text documents, they must be translated into some $p$ dimensional real vector space where the dot product is defined. There are a number of methods to achieve this, but the most applicable to this project is the TF-IDF method. An extension of the bag-of-words method \citet{kim/2019/multicotraining}, it translates each document into a vector with dimensionality equal to the number of tokens in the corpus vocabulary. Each feature is equivalent to the representation of a token within the document, weighed by the representation of the token across the corpus. Adapting the description from Robertson \cite{robertson/2004/understanding}, a token appearing in many documents, such as "protein" across the corpus of article abstracts, is not a good differentiator of documents and the feature attributed to the token within the vector representation should be small.
 
 \subsubsection{Definitions}
 
@@ -108,14 +106,14 @@ A corpus $D$ is a set of documents where each document is represented by a bag o
     \label{eq:idf}
 \end{equation}
 
-From these definitions, the score of a token within a document can be calculated as $\operatorname{score}(t, d, D) = \operatorname{tf}_{t,d} \cdot \operatorname{idf}_{t, D}$, the representation of the token within the document, weighed by the inverse of it's representation within the corpus.
+From these definitions, the score of a token within a document can be calculated as $\operatorname{Score}(t, d, D) = \operatorname{tf}_{t,d} \cdot \operatorname{idf}_{t, D}$, the representation of the token within the document, weighed by the inverse of it's representation within the corpus.
 
 \subsubsection{Score Evaluation}
 
 The vocabulary for a corpus $V_D$ can be defined as the set of unique tokens appearing within the corpus. Let $p = |V_D|$ such that each token in the vocabulary corresponds to an arbitrary dimension in the vector space.  The static embedding \cite{jurafsky/2026/speech}, the vector representation of $d$,  can be computed by first setting a fixed ordering of the vocabulary $V'_D = (v_1, v_2, ..., v_p)$. Then the static embedding is computed by:
 
 \begin{equation}
-    x_d = (\operatorname{score}(v_1,d,D), ... , \operatorname{score}(v_p,d,D)) \in \mathbb{R}^p
+    x_d = (\operatorname{Score}(v_1,d,D), ... , \operatorname{Score}(v_p,d,D)) \in \mathbb{R}^p
     \label{eq:tfidf_vectorization}
 \end{equation}
 
@@ -131,19 +129,24 @@ The final input representation of a token is the sum of the learned token, segme
 
 \subsubsection{Attention}
 
-The BERT model architecture uses bidirectional self-attention, meaning each token attends to the context across the entire sequence. This ensures each token embedding is a reflection of the token's context within the input sequence \cite{devlin/2018/bert} . Define the quantities $L$, $A$ and $H$, representing the number of layers, number of attention heads and hidden size respectively. Let a document be a sequence of tokens $ t_1,t_2, t_3,..., t_n$ with $t \in \mathbb{R}^H$, which are concatenated such that $T \in \mathbb{R}^{n \times H}$.  Let $W^Q$, $W^K$, $W^V$ be learned parameters, such that $Q = TW^{Q}$,  $K = TW^{K}$  and $V = TW^{V}$ \cite{jurafsky/2026/speech}. Each attention head then computes:
+The BERT model architecture uses bidirectional self-attention, meaning each token attends to the context across the entire sequence. This ensures each token embedding is a reflection of the token's context within the input sequence \cite{devlin/2018/bert} . Define the quantity $H$ representing the hidden size. Let a document be a sequence of tokens $ t_1,t_2, t_3,..., t_n$ with $t \in \mathbb{R}^H$, which are concatenated such that $T \in \mathbb{R}^{n \times H}$.  Let $W^Q$, $W^K$, $W^V$ be learned parameters, such that $Q = TW^{Q}$,  $K = TW^{K}$  and $V = TW^{V}$ \cite{jurafsky/2026/speech}. Each attention head then computes:
 
 \begin{equation}
-  \operatorname{Attention}(Q, K, V)
-    = \operatorname{softmax}\!\left(\frac{QK^{\top}}{\sqrt{d_k}}\right) V
-  \label{eq:attention}
+    \operatorname{Attention}(Q, K, V) = \operatorname{softmax} \left( \frac{ QK^{\top} }{ \sqrt{d_k} } \right) V
+    \label{eq:attention}
 \end{equation}
 
-The value $d_k$ is the dimensionality of vectors $k \in K$ and $q \in Q$ and is a scaling factor found by Vaswani et al. to prevent the SoftMax function from being pushed into regions with small gradients \cite{vaswani/2017/attention} . The results of each head are concatenated such that $T' \in  \mathbb{R}^{n \times H}$.
+The value $d_k$ is the dimensionality of vectors $k \in K$ and $q \in Q$ and is a scaling factor found by Vaswani et al. to prevent the softmax function from being pushed into regions with small gradients \cite{vaswani/2017/attention} . The results of each head are concatenated such that $T' \in  \mathbb{R}^{n \times H}$.
 
 \subsubsection{Mixed Domain vs. Domain Specific Pretraining}
 
 There exist two distinct methods to pretraining a domain specialized BERT model: mixed domain and domain specific. Mixed domain pretraining essentially initializes the original BERT model, which was pretrained on Wikipedia and BookCorpus \cite{devlin/2018/bert}, and continuing the pretraining process on in-domain text. Domain specific instead trains the model from scratch using only the in-domain text \cite{gu/2021/domainspecific}.  Gu et al. found that domain specific pretraining significantly outperformed mixed domain pretrained model, particularly in domains with an abundance of available literature \cite{gu/2021/domainspecific}.
+
+\subsubsection{The Anisotropic Phenomenon}
+
+First described by Gao et al. \cite{gao/2019/representation}, the problem of anisotropy refers to the uneven distribution of contextual embeddings within a the vector space. Geometrically, the vectors are not distributed uniformly within the vector space, instead occupying a narrow cone \cite{ethayarajh/2019/contextual}. Using direction-based similarity metrics then results in a positive correlation between any two unrelated words \cite{gao/2019/representation}. Ethayarajh also showed that the anisotropy of embeddings grows with each consecutive model layer \cite{ethayarajh/2019/contextual}.
+
+Stollenwerk et al. propose a mitigation strategy they describe as output embedding center (OEC), which involves centering the mean output embedding at the origin \cite{stollenwerk/2026/output}. This is done by subtracting the mean output embedding from each output embedding, effectively normalizing the magnitude around zero. Biś et al. found that output embeddings tend to be isotropic around their center \cite{bis/2021/much}, suggesting the mean centering strategy restores the isotropic property necessary for direction-based comparison.
 
 \subsection{Cosine Distance}
 
@@ -156,9 +159,78 @@ The cosine distance $s$ is defined by:
 
 In this representation, the distance metric is a method of vector orientation as opposed to magnitude, and is a simple remapping of the cosine similarity. While not a true distance metric, it is a commonly used representation of the semantic similarity of text documents \cite{you/2025/semantics}.  Unlike the Euclidean distance, the cosine distance is invariant to magnitude, neutralizing the influence of the length and absolute frequency of terms in the document.
 
-\subsection{Hierarchical Metrics}
+\subsection{Evaluation Metrics}
 
-%TODO
+In the implementation of GOCat, the prediction was ranked sequence of terms, truncated to a maximum allowed length. By contrast, the true labels were an unordered, arbitrary length set, without any internal ranking scheme. The ontology itself is also hierarchical by construction, implying the possibilty of the classifier predicting a child or parent of the true term. These predictions are not wrong in the binary sense, since there is a relationship between the two terms the classifier may have learned. In order to accurately measure the peculiarities of the task, two sets of metrics are applicable.
+
+Let $D_{test}$ represent the set of test documents, such that $T_d=\{ t_1, ..., t_n \}$ is the set of terms associated with document $d \in D_{test}$, and $\hat{T}_d=(\hat{t}_1, ... , \hat{t}_m )$ be the ranked prediction sequence returned by the classifier.
+
+\subsubsection{Exact Matching}
+
+The first set of metrics treats the label space of terms to be independent of one another, only considering exact matches during evaluation. Used Gobiell et al. to evaluate GOCat, these two metrics represent the model's ability to exactly predict the desired label space, with no consideration for the hierarchical nature of the ontology.
+
+The mean reciprocal rank (MRR) measures the mean position at which the ranked sequence provides a correct prediction across the set of test documents \cite{radev/2002/evaluating}. Formally, define the rank set of a prediction sequence to be $\hat{R}_d = \{  i : \hat{t}_i \in T_d \}$, such that it contains the rank of each correctly predicted term in $\hat{T}_d$. The reciprocal rank and MRR can then be defined by:
+
+\begin{multicols}{2}
+    \begin{equation}
+        \hat{r}_d =
+        \begin{cases}
+            0                    & \textnormal{if } |\hat{R}_d| = 0 \\
+            (\min\hat{R}_d)^{-1} & \textnormal{otherwise}
+        \end{cases}
+        \label{eq:rr}
+    \end{equation}
+    \break
+    \begin{equation}
+        \operatorname{MRR} = \frac{1}{|D_{test}|} \sum_{d \in D_{test}} \hat{r}_d
+        \label{eq:mrr}
+    \end{equation}
+\end{multicols}
+
+The macro-average recall (MAR) measures the per-term proportion of the case that a term was both associated to a document and predicted to be so. Let $Y_{test} = \bigcup_{d \in D_{test}} T_d$ be the set of all terms associated with documents in the test set. Then for each term, define $F_t = \{d : t \in T_d\}$ and $G_t  = \{ d:t \in \hat{T}_d\}$ to be the sets of documents that contain the term $t$ appearing in the true and predicted sets respectively. Then the MAR can be computed by:
+
+\begin{equation}
+    \operatorname{MAR} = \frac{1}{|Y_{test}|} \sum_{d \in D_{test}} \frac{|F_t \cap G_t|}{|F_t|}
+    \label{eq:mar}
+\end{equation}
+
+Importantly, each term contributes equally to the average, so terms which are disproportionally represented within the test set are not given precedence.
+
+\subsubsection{Hierarchical}
+
+The deficit of the above metrics is the lack of consideration for the relationship between terms. A term which sits one level above the expected term scores just as badly as a term which appears in a separate aspect altogether, which invalidates the ontology's structure entirely. Verspoor et al. demonstrated that the standard multi-label evaluation metrics of precision, recall and F-score report poor performance due to this lack of consideration \cite{verspoor/2006/categorization}, and propose extensions to these metrics which take the strength of the relationship between terms into account.
+
+\begin{multicols}{2}
+    \begin{equation}
+        \operatorname{HP} = \frac{1}{|\hat{T}_d|} \sum_{\hat{t} \in \hat{T}_d} \max_{t \in T_d} \frac{|{\uparrow} t \cap  {\uparrow} \hat{t}|}{|{\uparrow} \hat{t}|}
+        \label{eq:hp}
+    \end{equation}
+    \break
+    \begin{equation}
+        \operatorname{HR} = \frac{1}{|T_d|} \sum_{t \in T_d} \max_{\hat{t} \in \hat{T}_d} \frac{|{\uparrow} t \cap  {\uparrow} \hat{t}|}{|{\uparrow} t|}
+        \label{eq:hr}
+    \end{equation}
+\end{multicols}
+
+The hierarchic F-score is the harmonic mean of the two metrics, representing the trade-off between the two.
+
+\begin{equation}
+    \operatorname{HF} = 2 \frac{\operatorname{HP} \cdot \operatorname{HR}}{\operatorname{HP} + \operatorname{HR}}
+    \break
+    \label{eq:hf}
+\end{equation}
+
+For hierarchical precision, this definition makes the several key distinctions which make it suitable for evaluating hierarchical predictions. First, there is an increased penalty for predicting an incorrect general term, as opposed to a specific one. The penalty is also proportional with the distance between a predicted term and nearest expected ancestor \cite{verspoor/2006/categorization}. The use of the maxima within the equations ensures that each term is only compared against it's closest match, as opposed to an average over all possible terms \cite{verspoor/2006/categorization}.
+
+Verspoor et al. describe the characteristics of the metrics by comparing situations where there is a single prediction and single truth. If the prediction is a descendant of the expected term, then $HR=1$ and $HP<1$. In the opposite situation, where the prediction is an ancestor of the expected term, $HR < 1$ while $HP=1$. Thus a classifier which scores highly on $HR$ and poorly on $HP$ is generally predicting terms which are more specific than expected and vice versa \cite{verspoor/2006/categorization}.
+
+\subsubsection{Comparability}
+
+MRR, HP, HR and HF are defined per document, and then averaged over the whole test set, while MAR is defined per-term and averaged over all terms in the test set. Therefore, the former metrics are independent of the test set but the MAR is defined only over the entire test set and cannot be decomposed into a per document score. As a result, it is inaccurate to compare MAR and HR, despite both representing a form of recall. Gobiell et al. treated MRR as a precision metric in their tests \cite{gobeill/2013/managing}, but due to it's construction around rank sensitivity, it cannot be compared to the HP metric. Lastly, the hierarchical metrics are not comparable to their standard counterparts. Verspoor et al. note that "HP and HR will always be higher than the corresponding P and R values for a given test set" \cite{verspoor/2006/categorization},
+
+The metrics described above decompose across different aspects of the test set $D_{test}$. MRR and each of the hierarchical metrics are dependent on the only the document and it's predictions, while MAR is dependent on the test set in it's entirety. Due to this dependency, the MAR and HR are not comparable metrics and should be reported separately. While Gobiell et al. considered MRR to be a precision metric, it is also not comparable to HP since it is
+
+The hierarchical metrics are also not comparable to their standard counterparts of precision, recall, and F-score. Verspoor et al. note that "HP and HR will always be higher than the corresponding P and R values for a given test set", and are "not comparable metrics." \cite{verspoor/2006/categorization}
 
 \section{Implementation}
 
@@ -191,20 +263,19 @@ The implantation of the SKLearn's \verb|TfidfVectorizer| uses a two step process
 
 Once the vocabulary and IDF vector have been computed, they can be stored and later re-initialized into a \verb|TfidfVectorizer| object in order avoid recomputing the values. Recomputation is necessary on any change in the corpus, such as adding a new document. With the vocabulary and IDF vector initialized, raw text can now be transformed into a sparse static embedding using the procedure detailed above.
 
-
 \subsubsection{BiomedBERT}
 
-The model chosen as the default for this project was BiomedBERT \cite{gu/2021/domainspecific}, a BERT \cite{devlin/2018/bert} variant trained from scratch on abstracts from PubMed and full text articles from PubMedCentral \cite{sayers/2024/database}.
+The model chosen as the default for this project was BiomedBERT \cite{gu/2021/domainspecific}, a BERT \cite{devlin/2018/bert} variant trained from scratch on abstracts from PubMed and full text articles from PubMedCentral \cite{sayers/2024/database}. This can be changed at any time by supplying the constructor with a valid HuggingFace model name, or the path to the model on disk.
 
-Utilizing the Transformers library from Wolf et al. \cite{wolf/2020/transformers}, the model is automatically initialized with the correct configuration, based on the provided model's name or path. Each document in the batch is transformed into a sequence of tokens, and truncated to the maximum sequence length, 512 tokens  \cite{sun/2019/finetune},  tolerated by the model. Each sequence shorter than the maximum sequence length across the batch is padded, ensuring the batch of sequences is rectangular.
+Utilizing the Transformers library from Wolf et al. \cite{wolf/2020/transformers}, the model is automatically initialized with the correct configuration. Each document in the batch is transformed into a sequence of tokens, and truncated to the maximum sequence length, 512 tokens  \cite{sun/2019/finetune},  tolerated by the model. Each sequence shorter than the maximum sequence length across the batch is padded, ensuring the batch of sequences is rectangular.
 
 The values of the last hidden state are the desired per-token contextual embeddings, which are aggregated by the mean-pooling strategy described by Reimers et al \cite{reimers/2019/sentence-bert}. As documents within a batch may be padded, the mean is computed over only the tokens marked as relevant by the attention mask produced by the tokenizer \cite{wolf/2020/transformers}. The reference for this technique can be found in the implementation of Sentence-BERT.
 
-Given a batch $D$ of documents $d = \{t_1, t_2, t_3, ...\}$, each a sequence of tokens with attention mask $a = (a_a, a_2, a_3, ...)$ such that $a_i \in \{0, 1\}$, the model returns a sequence of contextual embeddings $e_1, e_2, e_3,...$ where $e_i \in \mathbb{R}^{768}$ \cite{gu/2021/domainspecific, devlin/2018/bert}. The resulting document embedding vector is the mean pool of each token vector, with respect to the attention mask:
+Given a batch $D$ of documents $d = \{t_1, t_2, t_3, ...\}$, each a sequence of tokens with attention mask $a = (a_1, a_2, a_3, ...)$ such that $a_i \in \{0, 1\}$, the model returns a sequence of contextual embeddings $e_1, e_2, e_3,...$ where $e_i \in \mathbb{R}^{768}$ \cite{gu/2021/domainspecific, devlin/2018/bert}. The resulting document embedding vector is the mean pool of each token vector, with respect to the attention mask:
 
 \begin{equation}
-   e = \frac{\sum_{i} e_ia_i}{\sum_{i} a_i}
-   \label{eq:mean_pool_attention_mask}
+    e = \frac{\sum_{i} e_ia_i}{\sum_{i} a_i}
+    \label{eq:mean_pool_attention_mask}
 \end{equation}
 
 This results in a dense vector such that $e \in \mathbb{R}^{768}$, which is representative of the input document, and independent of the corpus.
@@ -217,8 +288,8 @@ The main prediction mechanism of the program utilizes a brute-force KNN algorith
 The KNN algorithm computes an ordered sequence of document/distance pairs $\{(d_k, s_k) : k \in [1, K]\}$ for a test document $d_{test}$ such that $s_k \in [0,2]$. This sequence represents the prediction and can be unpacked into the sequences of documents $D_K$ and distances $S_K$. Let the sequence of scores be the transformation of distances defined by:
 
 \begin{equation}
-S'_K = \{ (1-s_k)^{\rho} : \rho \in \{1,3,5,...\} \}
-\label{eq:amplified_similarity}
+    S'_K = \{ (1-s_k)^{\rho} : \rho \in \{1,3,5,...\} \}
+    \label{eq:amplified_similarity}
 \end{equation}
 
 This process reverts the distance back to a similarity, and then takes it to an exponent $\rho$; a method proposed by Breese et al. \cite{bresse/1998/emprirical}. This technique emphasizes closer matches while further punishing further matches. In order to prevent sign degeneration, $\rho$ must be an odd integer.
@@ -226,8 +297,8 @@ This process reverts the distance back to a similarity, and then takes it to an 
 With $T_d$ as the set of GO terms annotated to a document $d$, the score for a term $t$ is calculated by:
 
 \begin{equation}
-\operatorname{score}(t) = \sum_{(d_k, s'_k)}s'_k\ [t \in T_{d_k}]
-\label{eq:prediction_score}
+    \operatorname{score}(t) = \sum_{(d_k, s'_k)}s'_k\ [t \in T_{d_k}]
+    \label{eq:prediction_score}
 \end{equation}
 
 Each term annotated to a document in the prediction set is scored and then the list of terms is sorted by the aggregate score, representing the final prediction sequence $T_{d_{test}}$.
@@ -262,32 +333,30 @@ The batch response is contained in an XML document, which is used to extract the
 \begin{table}
     \centering
     \begin{tabular}{|m{10em}|m{5em}|}
-         \hline
-         Attribute&Quantity\\
-         \hline
-         \hline
-         Terms& 48,329\\
-         \hline
-         Relations& 71,895\\
-         \hline
-         Annotation Pairs& 554,707\\
-         \hline
-         Annotation PMIDs& 204,622\\
-         \hline
-          Annotation GOIDs&28,185\\
-         \hline
-          Corpus Size&202,638\\
-          \hline
+        \hline
+        Attribute         & Quantity \\
+        \hline
+        \hline
+        Terms             & 48,329   \\
+        \hline
+        Relations         & 71,895   \\
+        \hline
+        Annotation Pairs  & 554,707  \\
+        \hline
+        Annotation PMIDs  & 204,622  \\
+        \hline
+        Annotation GOIDs  & 28,185   \\
+        \hline
+        Final Corpus Size & 202,638  \\
+        \hline
     \end{tabular}
     \caption{Database Metadata}
     \label{tab:metadata}
 \end{table}
 
-
-
 In addition to Table \ref{tab:metadata}, article abstracts in the corpus span the publication date range of 1959 to 2026, while annotations span the range 1999 to 2026. Out of the 202,638 documents in the corpus, there are three duplicates; each contains the text "[Figure: see text]." and hold valid associations to annotations.
 
-Several properties of the data should also be noted. First, of 48,239 GO terms, only 28,185 are referenced by annotations. Due to the nature of the KNN algorithm, only 58\% of the label space is trained on, meaning over 40\% of GO terms will never be predicted. Second, the label space is incredibly imbalanced as seen in Figure \ref{fig:annotation_terms}. Only a handful of terms are associated to the large majority of annotations.
+Several properties of the data should also be noted. First, of 48,239 GO terms, only 28,185 are referenced by annotations. Due to the nature of the KNN algorithm, only 58\% of the potential label space is ever visible, meaning over 40\% of GO terms will never be predicted regardless of how well they match the input document. Second, the label space is incredibly imbalanced as seen in Figure \ref{fig:annotation_terms}. Only a small handful of terms are associated with a large majority of annotations, and thus can be expected to be predicted much more frequently.
 
 \begin{figure}
     \centering
@@ -296,12 +365,45 @@ Several properties of the data should also be noted. First, of 48,239 GO terms, 
     \label{fig:annotation_terms}
 \end{figure}
 
+\subsection{Indexing }
+
+In order to prevent re-indexing each time a query is executed, there exist secondary tables within the database responsible for persistence of an index. Each vectorization method maintains it's own index,  and each is treated as a distinct branch in the programs execution path.
+
+The \verb|TfidfVectorizer| is persisted as two separate tables: \verb|vocabulary| and \verb|vectorizations|. The \verb|vocabulary| table stores the triples \verb|(token, position, value)| which indicate a token's position within the ordered vocabulary and its IDF value. The \verb|vectorizations| table stores the sparse matrix in COO format triples \verb|(id, position, value)| keyed on the PMID of the associated document. The sparse matrix is reconstructed and translated into CSR format, the standard used throughout SKLearn, on load. Importantly, the sparse matrix is never materialized, minimizing memory and transfer overhead.
+
+Contextual embeddings emitted by \verb|BertEmbeddingsTokenizer| are stored as a tuple \verb|(id, data)|. Each embedding, a vector in $\mathbb{R}^{768}$, is serialized using the Pickle utility and stored as byte blob. As such, no reconstruction of the vector is necessary upon re-initialization, simply de-serialization. Importantly, due to the anisotropic property of BERT embeddings, the embedding vectors are mean centered before any classification in accordance with the strategy described by Stollenwerk et al. \cite{stollenwerk/2026/output} using SKLearn's \verb|StandardScaler| without scaling to unit variance.
+
 \section{Experiment}
 
 \subsection{Hyperparameter Tuning}
 
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{hyperparameters_tfidf.png}
+    \caption{Best Hyperparameters using TF-IDF Static Embeddings}
+    \label{fig:tfidf_hyperparam}
+\end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{hyperparameters_bert.png}
+    \caption{Best Hyperparameters using BERT Contextual Embeddings}
+    \label{fig:bert_hyperparam}
+\end{figure}
 \subsection{Temporal Evolution}
 
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{historical_exact.png}
+    \caption{Psuedo-historical Comparison using MRR/R20}
+    \label{fig:historical_exact}
+\end{figure}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{historical_hierarchical.png}
+    \caption{Psuedo-historical Comparison using HP/HR20}
+    \label{fig:historical_hierarchical}
+\end{figure}
 \section{Evaluation}
 
 \subsubsection{Vectorization Trade-offs}
@@ -312,11 +414,11 @@ Context and language variation are where this method begins to struggle; Many te
 
 The process is dependent on the corpus of documents, alongside the tokenization process. This means that any time a document to the corpus, the transformer must be re-fitted and the corpus re-vectorized. The cost of adding a document to the corpus scales proportionally to the corpus' size. With a relatively simple tokenization process, this is a computationally cheap task. However, even with the simple process outlined in the implementation of the tokenization process, memoization was required to significantly reduce computation time of the Porter stemming. The more nuance added to the tokenization process, such as re-mapping synonyms, the more expensive the process becomes.
 
-A BERT embeddings vectorization addresses many of the drawbacks of the TF-IDF vectorizer, in that the bidirectional self-attention provides contextual awareness between tokens. A model will be able to determine that two synonymous GO terms such as "saposin" and "sphingolipid activator protein activity" are contextually linked through the distribution learned from the training data.
+A BERT embeddings vectorization addresses many of the drawbacks of the TF-IDF vectorizer, in that the bidirectional self-attention provides contextual awareness between tokens. A model is theoretically capable of determining that two synonymous GO terms such as "saposin" and "sphingolipid activator protein activity" are contextually linked through the distribution learned from the training data.
 
-This process is entirely dependent on the training of the model and is difficult to quantify or tune. As seen in the experimental data, the BioBERT model often scored poorly on recall metrics. The cost of fine tuning the model is significant, requiring heavy computational loads and a massive amount of data. The potential effectiveness of the BERT based approach is high, but the cost of reaching that effectiveness is also much higher than that of the TF-IDF approach.
+This process is entirely dependent on the training of the model and is difficult to quantify or tune. As seen in the experimental data, the BiomedBERT model often scored poorly on recall metrics. The cost of fine tuning the model is significant, requiring heavy computational loads and a massive amount of data. The potential effectiveness of the BERT based approach is high, but the cost of reaching that effectiveness is also much higher than that of the TF-IDF approach.
 
-Even once trained, the model requires significant computation to vectorize the entire corpus; untested but anecdotally hours versus the TF-IDF vectorization's minutes. However, adding a document to the corpus is linear, due to the independence of the vectorization from the corpus. Within the specific implementation of the BertEmbeddingsVectorizer, the truncation of long documents means partial encoding and loss of potentially valuable information; this is a time and priority limitation, rather than a downside of the method.
+Even once trained, the model requires significant computation to vectorize the entire corpus; anecdotally hours versus the TF-IDF vectorization's minutes. However, adding a document to the corpus is linear, due to the independence of the vectorization from the corpus. Within the specific implementation of the BertEmbeddingsVectorizer, the truncation of long documents means partial encoding and loss of potentially valuable information; this is a time and priority limitation, rather than a downside of the method.
 
 \section{Personal Assessment}
 
