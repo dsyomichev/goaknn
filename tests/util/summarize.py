@@ -2,9 +2,12 @@ import numpy
 import json
 
 from pathlib import Path
-from json import encoder
+from sklearn.neighbors import NearestNeighbors
 
 CACHE_DIR = Path(__file__, "../../../data/cache").resolve()
+
+from src.db.DatabaseClient import DatabaseClient
+from src.db.execute import execute
 
 results = {}
 
@@ -73,6 +76,7 @@ def compare(method):
     return result
 
 
+"""
 result = compare("tfidf")
 
 with open(CACHE_DIR.joinpath("best_param_score_combos_tfidf.json"), "w") as file:
@@ -82,3 +86,33 @@ result = compare("bert")
 
 with open(CACHE_DIR.joinpath("best_param_score_combos_bert.json"), "w") as file:
     json.dump(result, file, indent=4)
+"""
+
+
+def separation(connection):
+    client = DatabaseClient(connection)
+
+    vectorizations, _ = client.get_vectorizations()
+    embeddings, _ = client.get_embeddings()
+
+    vectors = embeddings
+
+    knn = NearestNeighbors(n_neighbors=2, metric="cosine", n_jobs=-1)
+
+    knn.fit(vectors)
+
+    all_distances, _ = knn.kneighbors(vectors)
+
+    print(all_distances)
+
+    aggregate = []
+
+    for distances in all_distances:
+        distance = distances[1]
+
+        aggregate.append(distance)
+
+    print(numpy.mean(aggregate))
+
+
+execute(separation)

@@ -6,7 +6,9 @@ from matplotlib import pyplot
 from matplotlib.patches import Patch
 from pathlib import Path
 
+from src.db.DatabaseClient import DatabaseClient
 from src.db.execute import execute
+from tests.historical import train_test_split_temporal, SPLIT_TEMPORAL_START, SPLIT_TEMPORAL_STEP
 
 CACHE_DIR = Path(__file__, "../../../data/cache").resolve()
 
@@ -104,7 +106,7 @@ def plot_historical_comparison(result_tfidf, result_bert, metric="exact"):
     return figure
 
 
-def plot_tfidf_versus_bert_hf(result_tfidf, result_bert):
+def plot_tfidf_versus_bert_hf(result_tfidf, result_bert, metric):
     figure, axes = pyplot.subplots(1, 3)
 
     parameters = {}
@@ -125,8 +127,8 @@ def plot_tfidf_versus_bert_hf(result_tfidf, result_bert):
 
         X, Y = numpy.meshgrid(numpy.unique(x), numpy.unique(y))
 
-        z_tfidf = numpy.array(result_tfidf["mean_test_hf"])[fixed_n_labels_idxs]
-        z_bert = numpy.array(result_bert["mean_test_hf"])[fixed_n_labels_idxs]
+        z_tfidf = numpy.array(result_tfidf[metric])[fixed_n_labels_idxs]
+        z_bert = numpy.array(result_bert[metric])[fixed_n_labels_idxs]
         z = z_tfidf < z_bert
 
         Z = z.reshape(X.shape)
@@ -177,6 +179,41 @@ def plt_annotation_term_count(connection):
     return figure
 
 
+def plt_train_test_split_temporal_size(connection):
+    figure, axis = pyplot.subplots()
+
+    client = DatabaseClient(connection)
+
+    train_test_split_generator = train_test_split_temporal(client, start=SPLIT_TEMPORAL_START, step=SPLIT_TEMPORAL_STEP)
+
+    x = []
+    ys_train = []
+    ys_test = []
+
+    for i, (_, _, y_train, y_test) in enumerate(train_test_split_generator):
+        year = SPLIT_TEMPORAL_START + i
+
+        x.append(year)
+        ys_train.append(len(y_train))
+        ys_test.append(len(y_test))
+
+    x = numpy.array(x)
+    ys_train = numpy.array(ys_train)
+    ys_test = numpy.array(ys_test)
+
+    axis.set_xlabel("Year")
+    axis.set_ylabel("Size")
+
+    axis.plot(x, ys_train, color="black", linestyle="solid", label="Train")
+    axis.plot(x, ys_test, color="black", linestyle="dashed", label="Test")
+
+    figure.legend(loc="lower center", bbox_to_anchor=(0.5, -0.1))
+
+    return figure
+
+
+## Hyperparameter Comparison
+
 for method in ["tfidf", "bert"]:
     with open(CACHE_DIR.joinpath(f"hyperparameters_{method}_hierarchical.json")) as file:
         result = json.load(file)
@@ -190,6 +227,8 @@ for method in ["tfidf", "bert"]:
     output_path = Path.joinpath(CACHE_DIR, f"hyperparameters_{method}.png")
 
     figure.savefig(output_path)
+
+## Historical Comparison (Exact)
 
 with open(CACHE_DIR.joinpath(f"historical_tfidf_exact.json")) as file:
     result_tfidf = json.load(file)
@@ -205,6 +244,8 @@ output_path = Path.joinpath(CACHE_DIR, f"historical_exact.png")
 
 figure.savefig(output_path, bbox_inches="tight")
 
+## Historical Comparison (Hierachical)
+
 with open(CACHE_DIR.joinpath(f"historical_tfidf_hierarchical.json")) as file:
     result_tfidf = json.load(file)
 
@@ -219,19 +260,39 @@ output_path = Path.joinpath(CACHE_DIR, f"historical_hierarchical.png")
 
 figure.savefig(output_path, bbox_inches="tight")
 
+## Versus (HF)
+
 with open(CACHE_DIR.joinpath(f"hyperparameters_tfidf_hierarchical.json")) as file:
     result_tfidf = json.load(file)
 
 with open(CACHE_DIR.joinpath(f"hyperparameters_bert_hierarchical.json")) as file:
     result_bert = json.load(file)
 
-figure = plot_tfidf_versus_bert_hf(result_tfidf, result_bert)
+figure = plot_tfidf_versus_bert_hf(result_tfidf, result_bert, "mean_test_hf")
 
 figure.set_size_inches((12, 4))
 
 output_path = Path.joinpath(CACHE_DIR, f"tfidf_versus_bert_hf.png")
 
 figure.savefig(output_path, bbox_inches="tight")
+
+## Versus (MAR)
+
+with open(CACHE_DIR.joinpath(f"hyperparameters_tfidf_exact.json")) as file:
+    result_tfidf = json.load(file)
+
+with open(CACHE_DIR.joinpath(f"hyperparameters_bert_exact.json")) as file:
+    result_bert = json.load(file)
+
+figure = plot_tfidf_versus_bert_hf(result_tfidf, result_bert, "mean_test_mar")
+
+figure.set_size_inches((12, 4))
+
+output_path = Path.joinpath(CACHE_DIR, f"tfidf_versus_bert_mar.png")
+
+figure.savefig(output_path, bbox_inches="tight")
+
+## Annotation Term Count
 
 figure = execute(plt_annotation_term_count)
 
@@ -240,3 +301,13 @@ figure.set_size_inches(6, 6)
 output_path = Path.joinpath(CACHE_DIR, f"annotation_term_count.png")
 
 figure.savefig(output_path)
+
+## Temporal Split Sizes
+
+figure = execute(plt_train_test_split_temporal_size)
+
+figure.set_size_inches((12, 6))
+
+output_path = Path.joinpath(CACHE_DIR, f"historical_train_test_split_size.png")
+
+figure.savefig(output_path, bbox_inches="tight")
