@@ -130,7 +130,7 @@ Certain abbreviations and acronyms are frequently utilized within this report, a
     \end{tabular}
 \end{table}
 
-\section{Theoretical Background}\label{sec:background}
+\section{Background Research}\label{sec:background}
 
 This section provides a detailed overview of the concepts used throughout the project, as well as summarize each concepts specific use case within the program.
 
@@ -194,39 +194,51 @@ Language models, such as the Bidirectional Encoder Representations from Transfor
 
 \subsubsection{Embeddings}\label{sec:background-contextual-embeddings}
 
-Mirroring the TF-IDF process described in section \ref{sec:tfidf}, vectorization utilizing a BERT model also requires a tokenization step, here handled by the WordPiece algorithm developed by Wu et al. \cite{wu/2016/googles}. Perhaps the most important difference between this algorithm and the strategy described in \ref{sec:tokenization} is that the WordPiece algorithm utilizes a fixed vocabulary of word fragments, also known as subwords. The input text is recursively split on the longest subword within the vocabulary, and any portions of the input which are not represented in the vocabulary are replaced by a designated token representing unknown character sequences. The fixed vocabulary size means there is no dependence on the corpus as seen in the TF-IDF process and described in section \ref{sec:encoding}.
+Mirroring the TF-IDF process described in section~\ref{sec:tfidf}, vectorization utilizing a BERT model also requires a tokenization step, here handled by the WordPiece algorithm developed by Wu et al.\ \cite{wu/2016/googles}. Perhaps the most important difference between this algorithm and the strategy described in~\ref{sec:tokenization} is that the WordPiece algorithm utilizes a fixed vocabulary of word fragments, also known as subwords. The input text is recursively split on the longest subword within the vocabulary, and any portions of the input which are not represented in the vocabulary are replaced by a designated token representing unknown character sequences. The fixed vocabulary size means there is no dependence on the corpus as seen in the TF-IDF process and described in section~\ref{sec:encoding}.
 
-The resulting sequence of tokens is then encoded as an input embedding, the sum of the token identity, segment and positional embeddings \cite{devlin/2018/bert}. These three embeddings are learned during the model's pretraining, and the resulting input embedding is at this point dependent only it's own identity and position in the input sequence \cite{kubek/2025/selfimproving, huang/2021/multiplicative}. The input embeddings, true to their name, serve as the input to the model, which then passes them through it's layers to finally result in output embeddings, which have been contextualized. The BERT model architecture uses bidirectional self-attention, first presented by \cite{vaswani/2017/attention}, which Devlin et al. describe to be property that each token is capable of attending to the context across the entire input sequence \cite{devlin/2018/bert}. This ensures that each token's output embedding is reflection of the token's context within the entire input, meaning two instances of the same token in different documents have different output embeddings. This property is the clear differentiator between this method and the TF-IDF vectorization described in section \ref{sec:background-lexical-encoding}. Where TF-IDF only considers the distribution of tokens within a document, contextual embeddings additionally consider the context in which those tokens exist.
+The resulting sequence of tokens is then encoded as an input embedding, the sum of the token identity, segment and positional embeddings~\cite{devlin/2018/bert}. These three embeddings are learned during the model's pretraining, and the resulting input embedding is at this point dependent only it's own identity and position in the input sequence~\cite{kubek/2025/selfimproving, huang/2021/multiplicative}. The input embeddings, true to their name, serve as the input to the model, which then passes them through it's layers to finally result in output embeddings, which have been contextualized. The BERT model architecture uses bidirectional self-attention, first presented by~\cite{vaswani/2017/attention}, which Devlin et al.\ describe to be property that each token is capable of attending to the context across the entire input sequence~\cite{devlin/2018/bert}. This ensures that each token's output embedding is reflection of the token's context within the entire input, meaning two instances of the same token in different documents have different output embeddings. This property is the clear differentiator between this method and the TF-IDF vectorization described in section~\ref{sec:background-lexical-encoding}. Where TF-IDF only considers the distribution of tokens within a document, contextual embeddings additionally consider the context in which those tokens exist.
 
 \subsubsection{Mean Pooling}\label{sec:background-contextual-pooling}
 
-Alongside the sequence of tokens, the tokenization step described in \ref{sec:background-contextual-embeddings} also constructs an attention mask, a sequence $a=(a_1, a_2,a_3,\dots)$ where $a_i \in \{0,1\}$. This identifies the positions within the sequence which are not representative of the input, such as padding token positions.
+Alongside the sequence of tokens, the tokenization step described in~\ref{sec:background-contextual-embeddings} also constructs an attention mask, a sequence $a=(a_1, a_2,a_3,\dots)$ where $a_i \in \{0,1\}$. This identifies the positions within the sequence which are not representative of the input, such as padding token positions.
 
-The model outputs one embedding per token, which necessitates a pooling strategy in order to provide the per document representation required by the KNN algorithm. The mean-pooling strategy, described by Tang et al. to be the average taken over the output embeddings \cite{tang/2024/pooling}, is a strategy which does not involve additional training and is applicable to the bidirectional self-attention architecture of BERT. This must be taken with respect to the attention mask, as the model still outputs an embedding for the non-representative padding tokens. With the sequence of output embeddings $e=(e_1, e_2, e_3, \dots)$ the document's contextual vectorization is defined in equation \ref{eq:dense-vector}.
+The model outputs one embedding per token, which necessitates a pooling strategy in order to provide the per document representation required by the KNN algorithm. The mean-pooling strategy, described by Tang et al.\ to be the average taken over the output embeddings~\cite{tang/2024/pooling}, is a strategy which does not involve additional training and is applicable to the bidirectional self-attention architecture of the BERT model. This must be taken with respect to the attention mask, as the model still outputs an embedding for the non-representative padding tokens. With the sequence of output embeddings $e=(e_1, e_2, e_3, \dots)$ the document's contextual vectorization is defined in equation~\ref{eq:dense-vector}.
 
 \begin{equation}\label{eq:dense-vector}
-    z_d = \frac{\sum_{i} e_ia_i}{\sum_{i} a_i}
+    z_d = \frac{\sum_{i} {e_i}{a_i}}{\sum_{i} a_i}
 \end{equation}
 
-This results in a dense vector in $\mathbb{R}^{768}$ which is entirely independent of the corpus, unlike the vectorization described in \ref{sec:background-lexical-encoding}.
+This results in a dense vector in $\mathbb{R}^{768}$ which is entirely independent of the corpus, unlike the vectorization described in~\ref{sec:background-lexical-encoding}.
 
 \subsubsection{Domain Specific Pretraining}\label{sec:background-contextual-domain}
 
 There exist two distinct methods to pretraining a domain specialized BERT model: mixed domain and domain specific. Mixed domain pretraining essentially initializes the original BERT model, which was pretrained on Wikipedia and BookCorpus~\cite{devlin/2018/bert}, and continues the pretraining process on in-domain text. Domain specific instead trains the model from scratch using only the in-domain text~\cite{gu/2021/domainspecific}.  Gu et al.\ found that domain specific pretraining significantly outperformed mixed domain pretrained model, particularly in domains with an abundance of available literature~\cite{gu/2021/domainspecific}.
 
-Given the domain specific context of this project, this result is particularly important in selecting a specific BERT variant to drive the vectorization process. As such, the model chosen as the default for this project was BiomedBERT \cite{gu/2021/domainspecific}, a model trained from scratch by Gu et al. on biomedical abstracts from PubMed and full text articles from PubMedCentral \cite{sayers/2024/database}. This is the ideal candidate in that the documents being indexed in this project are also biomedical abstracts sourced from PubMed.
+Given the domain specific context of this project, this result is particularly important in selecting a specific BERT variant to drive the vectorization process. As such, the model chosen as the default for this project was BiomedBERT~\cite{gu/2021/domainspecific}, a model trained from scratch by Gu et al.\ on biomedical abstracts from PubMed and full text articles from PubMedCentral~\cite{sayers/2024/database}. This is the ideal candidate in that the documents being indexed in this project are also biomedical abstracts sourced from PubMed.
 
 \subsubsection{The Anisotropic Phenomenon}\label{sec:background-contextual-anisotropy}
 
-First described by Gao et al.~\cite{gao/2019/representation}, the problem of anisotropy refers to the uneven distribution of contextual embeddings within a the vector space. Geometrically, the vectors are not distributed uniformly within the vector space, instead occupying a narrow cone~\cite{ethayarajh/2019/contextual}. Using direction-based similarity metrics then results in a positive correlation between any two unrelated words~\cite{gao/2019/representation}. Ethayarajh also showed that the anisotropy of embeddings grows with each consecutive model layer~\cite{ethayarajh/2019/contextual}.
+After implementation of the BERT vectorization method, it was observed that the distances returned by the KNN algorithm all appeared within an incredibly small range. This made it difficult for the scoring function, described later in section~\ref{sec:methods-scoring} to effectively aggregate the scores and provide a valid result. After subsequent research it was determined that this was not a peculiarity of the data, but rather a well document property of the BERT architecture called the anisotropic phenomenon.
 
-Stollenwerk et al.\ propose a mitigation strategy they describe as output embedding center (OEC), which involves centering the mean output embedding at the origin~\cite{stollenwerk/2026/output}. This is done by subtracting the mean output embedding from each output embedding, effectively normalizing the magnitude around zero. Biś et al.\ found that output embeddings tend to be isotropic around their center~\cite{bis/2021/much}, suggesting the mean centering strategy restores the isotropic property necessary for direction-based comparison.
+First described by Gao et al.~\cite{gao/2019/representation}, the problem of anisotropy refers to the uneven distribution of contextual embeddings within a the vector space. Geometrically, the vectors are not distributed uniformly within the vector space, instead occupying a narrow cone~\cite{ethayarajh/2019/contextual}. Using direction-based similarity metrics then results in a positive correlation between any two unrelated words~\cite{gao/2019/representation}. Ethayarajh also showed that the anisotropy of embeddings grows with each consecutive model layer~\cite{ethayarajh/2019/contextual}. The actual result of this phenomenon is displayed in figure~\ref{fig:contextual-dim1-vs-dim2}, which plots the first two dimensions of the document vectorizations produced using the contextual vectorization method.
 
-% TODO: Add explantation th
+\begin{figure}\label{fig:contextual-dim1-vs-dim2}
+    \centering
+    \includegraphics[width=0.75\linewidth]{figures/embedding_d1_d2.png}
+    \caption{First two dimensions of document vectorizations produced with BERT vectorization method.}
+\end{figure}
+
+There is a noticable shift away from the origin in the first two dimensions, such that direction based comparison techniques, such as the cosine distance metric used in this project, struggle. Stollenwerk et al.\ propose a mitigation strategy they describe as output embedding center (OEC), which involves centering the mean output embedding at the origin~\cite{stollenwerk/2026/output}. This is done by subtracting the mean output embedding from each output embedding, effectively normalizing the magnitude around zero. Biś et al.\ found that output embeddings tend to be isotropic around their center~\cite{bis/2021/much}, suggesting the mean centering strategy restores the isotropic property necessary for direction-based comparison. Figure~\ref{fig:contextual-dim1-vs-dim2-scaled} shows the effect on the first two dimensions of the document vectorizations after applying the mean centering technique.
+
+\begin{figure}\label{fig:contextual-dim1-vs-dim2-scaled}
+    \centering
+    \includegraphics[width=0.75\linewidth]{figures/embeddings_d1_d2_scaled.png}
+    \caption{The first two dimensions of document vectorizations after applying mean centering.}
+\end{figure}
 
 \subsection{Measuring Distance}\label{sec:distance}
 
-% TODO: Explain why the cosine distance function is relevant
+A key component of the KNN algorithm is the distance metric used to compare samples. The standard metric is the Euclidian distance, % TODO: Finish this paragraph, relate the differences between the vectors produced by vectorization methods, why euclidian is bad in this case, and state standard that standard metric used in model similarity is cosine
 
 The cosine distance $s$ is defined by:
 
@@ -306,6 +318,8 @@ Verspoor et al.\ describe the characteristics of the metrics by comparing situat
 MRR, HP, HR and HF are defined per document, and then averaged over the whole test set, while MAR is defined per-term and averaged over all terms in the test set. Therefore, the former metrics are independent of the test set but the MAR is defined only over the entire test set and cannot be depicted as the mean of per document scores.. As a result, it is inaccurate to compare MAR and HR, despite both representing a form of recall. Gobiell et al.\ treated MRR as a precision metric in their tests~\cite{gobeill/2013/managing}, but due to it's construction around rank sensitivity, it cannot be compared to the HP metric. Lastly, the hierarchical metrics are not comparable to their standard counterparts. Verspoor et al.\ note that `HP and HR will always be higher than the corresponding P and R values for a given test set' and are `not comparable metrics'~\cite{verspoor/2006/categorization}.
 
 \section{Software Development}\label{sec:development}
+
+\section{Methods}\label{sec:methods}
 
 \section{Analysis of Results}\label{sec:analysis}
 
