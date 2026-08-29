@@ -5,6 +5,7 @@ import functools
 from matplotlib import pyplot
 from matplotlib.patches import Patch
 from pathlib import Path
+from sklearn.preprocessing import StandardScaler
 
 from src.db.DatabaseClient import DatabaseClient
 from src.db.execute import execute
@@ -212,6 +213,62 @@ def plt_train_test_split_temporal_size(connection):
     return figure
 
 
+def plt_embedding_d1_d2(connection):
+    figure, axis = pyplot.subplots()
+
+    client = DatabaseClient(connection)
+
+    embeddings, _ = client.get_embeddings()
+
+    x = [embedding[0] for embedding in embeddings]
+    y = [embedding[1] for embedding in embeddings]
+
+    axis.set_xlabel("First Dimension")
+    axis.set_ylabel("Second Dimension")
+
+    lim = 0.5
+
+    axis.set_xlim(-lim, lim)
+    axis.set_ylim(-lim, lim)
+
+    axis.vlines(0, -lim, lim, color="gray", linestyle="dotted")
+    axis.hlines(0, -lim, lim, color="gray", linestyle="dotted")
+
+    axis.scatter(x, y, color="black", marker=".")
+
+    return figure
+
+
+def plt_embedding_d1_d2_mean_center(connection):
+    figure, axis = pyplot.subplots()
+
+    client = DatabaseClient(connection)
+
+    embeddings, _ = client.get_embeddings()
+
+    embeddings = StandardScaler(with_std=False).fit_transform(embeddings)
+
+    x = [embedding[0] for embedding in embeddings]
+    y = [embedding[1] for embedding in embeddings]
+
+    axis.set_xlabel("First Dimension")
+    axis.set_ylabel("Second Dimension")
+
+    lim = 0.5
+
+    axis.set_xlim(-lim, lim)
+    axis.set_ylim(-lim, lim)
+
+    axis.vlines(0, -lim, lim, color="gray", linestyle="dotted")
+    axis.hlines(0, -lim, lim, color="gray", linestyle="dotted")
+
+    axis.scatter(x, y, color="black", marker=".")
+
+    return figure
+
+
+"""
+
 ## Hyperparameter Comparison
 
 for method in ["tfidf", "bert"]:
@@ -309,5 +366,27 @@ figure = execute(plt_train_test_split_temporal_size)
 figure.set_size_inches((12, 6))
 
 output_path = Path.joinpath(CACHE_DIR, f"historical_train_test_split_size.png")
+
+figure.savefig(output_path, bbox_inches="tight")
+
+"""
+
+## Embedding Dim. 1 vs Dim. 2
+
+figure = execute(plt_embedding_d1_d2)
+
+figure.set_size_inches((6, 6))
+
+output_path = Path.joinpath(CACHE_DIR, f"embedding_d1_d2.png")
+
+figure.savefig(output_path, bbox_inches="tight")
+
+## Scaled Embedding Dim. 1 vs Dim. 2
+
+figure = execute(plt_embedding_d1_d2_mean_center)
+
+figure.set_size_inches((6, 6))
+
+output_path = Path.joinpath(CACHE_DIR, f"embeddings_d1_d2_scaled.png")
 
 figure.savefig(output_path, bbox_inches="tight")

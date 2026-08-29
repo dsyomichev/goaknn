@@ -502,6 +502,21 @@ On the other hand, the hierarchical metrics don't seem to be affected by the qua
 
 \section{Evaluation}
 
+\subsection{Tokenization Complexity}
+
+The tokenization process is a large factor in the success or failure of TF-IDF vectorization. Because the primary indicator of the document is the IDF vector and it's associated vocabulary, the tokens chosen to be a part of the vocabulary play a large role in ensuring the vectorization is an accurate representation of the document throughout the corpus. Leaving too many common tokens results in document vectors which are indistiguishable from one another, while stripping too many away results in a document vector which is so specific to the particular document, it cannot be grouped amonst the other documents in the corpus. This is in essence a partitioning optimization, where the optimal ratio of general to specific must be found in order for the vectorization to be successful.
+
+The current implementation of tokenization stuggles to capture semantic relationships such as synonyms.
+The GO explicitly provides a list of synonyms for most terms, which can be understood to imply the commonality of synonymous terminology in biomedicine. In fact, managing the sprawl of synonymous language in biomedical literature is the GO's primary stated purpose. Within the current tokenization process, synonyms are treated independently, and cannot be accurately reflected in the vectorization process as a result. One paper may reference "saposin", while another "sphingolipid activator protein activity" which are synoymous according to the GO, but the tokenizer and by proxy TF-IDF vectorization are incapble of depticting this relationship.
+
+There are also an abundance of other issues pertaining to the tokenization step which are not rooted in the theoretical aspects of the process, but are specifically due to a rather primitive implementation. One prominant example of this is the poor handling of non-contextual strings such as dates, identifiers or postfixes
+
+Given the ontology explicitly provides a list of synonyms, for most terms,
+
+TF-IDF vectorization is largely dependent on the tokenization process which precedes it,
+
+The primary determining factor of TF-IDF vector comparison is the presence of token which are uncommon or "markers" across the corpus. Even under normalization through cosine distance comparison, tokens with higher IDF values will contribute more to the direction of a document vector than common tokens such as "protein" or "cell". This is a valuable property of the vectorization, and ensures that documents containing the similar distributions of marker tokens are grouped together.
+
 \begin{itemize}
     \item tokenization failures for tf-idf, why a more complicated tokenizing process could help but also be more expensive and ultimately subjective.
     \item discuss the failure of using a standard bert model rather than using a sentence-bert variant. Alleviates the Anisotropic problem significantly, while also allowing for per-sentence tokenization which should also capture more context.
