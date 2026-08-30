@@ -267,6 +267,32 @@ def plt_embedding_d1_d2_mean_center(connection):
     return figure
 
 
+def plt_score_with_rho():
+    figure, axis = pyplot.subplots()
+
+    x = numpy.linspace(0, 2, 100)
+
+    y_1 = 1 - x
+    y_3 = (1 - x) ** 3
+    y_5 = (1 - x) ** 5
+
+    axis.set_xlim(0, 2)
+    axis.set_ylim(-1, 1)
+
+    axis.plot(x, y_1, label="ρ = 1", color="black", linestyle="solid")
+    axis.plot(x, y_3, label="ρ = 3", color="black", linestyle="dashed")
+    axis.plot(x, y_5, label="ρ = 5", color="black", linestyle="dashdot")
+
+    axis.hlines(0, 0, 2, color="gray", linestyle="dotted")
+
+    axis.set_xlabel("Distance")
+    axis.set_ylabel("Amplified Similarity")
+
+    axis.legend()
+
+    return figure
+
+
 """
 
 ## Hyperparameter Comparison
@@ -369,8 +395,6 @@ output_path = Path.joinpath(CACHE_DIR, f"historical_train_test_split_size.png")
 
 figure.savefig(output_path, bbox_inches="tight")
 
-"""
-
 ## Embedding Dim. 1 vs Dim. 2
 
 figure = execute(plt_embedding_d1_d2)
@@ -388,5 +412,15 @@ figure = execute(plt_embedding_d1_d2_mean_center)
 figure.set_size_inches((6, 6))
 
 output_path = Path.joinpath(CACHE_DIR, f"embeddings_d1_d2_scaled.png")
+
+figure.savefig(output_path, bbox_inches="tight")
+
+"""
+
+figure = plt_score_with_rho()
+
+figure.set_size_inches((6, 6))
+
+output_path = Path.joinpath(CACHE_DIR, f"score_with_rho.png")
 
 figure.savefig(output_path, bbox_inches="tight")

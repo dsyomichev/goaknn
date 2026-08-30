@@ -1,6 +1,6 @@
 \documentclass[11pt]{article}
 \input{style/bigdata.txt}
-\usepackage{amsmath,amsfonts,amssymb,amsthm,latexsym,graphicx,array,multicol}
+\usepackage{amsmath,amsfonts,amssymb,amsthm,latexsym,graphicx,array,multicol,float}
 
 % chktex-file 8
 % chktex-file 44
@@ -62,7 +62,7 @@ The motivation behind this project is simple, GOCat is no longer officially avai
 
 Presented below is a glossary which describes the phrasing and terminology used throughout this report. In order disambiguate certain concepts, alternate words are utilized to represent different concepts with similar or same naming schemes.
 
-\begin{table}\label{tab:terminology}
+\begin{table}[H]
     \centering
     \begin{tabular}{| m{10em}  |m{20em} |}
         \hline
@@ -86,11 +86,12 @@ Presented below is a glossary which describes the phrasing and terminology used 
         indexing      & The process of vectorizing a corpus.                       \\
         \hline
     \end{tabular}
+    \caption{Glossary for terminology utilized in this report.}\label{tab:terminology}
 \end{table}
 
 Certain abbreviations and acronyms are frequently utilized within this report, and the following table lists them alongside the phrase they represent.
 
-\begin{table}\label{tab:abbreviations}
+\begin{table}[H]
     \centering
     \begin{tabular}{| m{5em} | m{25em} |}
         \hline
@@ -128,6 +129,7 @@ Certain abbreviations and acronyms are frequently utilized within this report, a
         PMID    & PubMed Identifier                                       \\
         \hline
     \end{tabular}
+    \caption{Abbreviations and acronyms used in this report.}\label{tab:acronyms}
 \end{table}
 
 \section{Background Research}\label{sec:background}
@@ -168,10 +170,10 @@ Equation~\ref{eq:tf} represents the token frequency (TF), the number of times a 
     \operatorname{idf}_{t, D} = \log{\frac{|D|}{\operatorname{df}_{t, D}}}
 \end{equation}
 
-The IDF assigns a weight to a token which logarithmically shrinks as the document frequency grows, such that a common token receives a lower weight. By putting Equations~\ref{eq:tf} and~\ref{eq:idf} together, the final TF-IDF score for a token is defined in Equation~\ref{eq:tfidf}.
+The IDF assigns a weight to a token which logarithmically shrinks as the document frequency grows, such that a common token receives a lower weight. By putting Equations~\ref{eq:tf} and~\ref{eq:idf} together, the final TF-IDF weight for a token is defined in Equation~\ref{eq:tfidf}.
 
 \begin{equation}\label{eq:tfidf}
-    \operatorname{Score}(t, d, D) = \operatorname{tf}_{t,d} \cdot \operatorname{idf}_{t, D}
+    \operatorname{Weight}(t, d, D) = \operatorname{tf}_{t,d} \cdot \operatorname{idf}_{t, D}
 \end{equation}
 
 Each token's score can therefore be considered as the quality of differentiation between documents that the token provides. Adapting the description from Robertson~\cite{robertson/2004/understanding}, a token which appears in many documents, for example \textit{protein} across the corpus tested in this project, is not a good differentiator of documents and should be assigned a lower score than an uncommon token such as \textit{deoxyglucopyranosid}.
@@ -181,10 +183,10 @@ Each token's score can therefore be considered as the quality of differentiation
 Define the vocabulary of a corpus to be $V_D$, which is the set of all distinct tokens appearing within the corpus. Let $p=|V_D|$, and define a fixed ordering of tokens with the vocabulary as $V'_D = (v_1, \dots, v_p)$, such that each token corresponds to a particular feature of the $p$-dimensional vector space. A document can then be encoded into its vector representation, the process for which is defined in Equation~\ref{eq:sparse-vector}.
 
 \begin{equation}\label{eq:sparse-vector}
-    x_d = (\operatorname{Score}(v_1,d,D), \dots , \operatorname{Score}(v_p,d,D)) \in \mathbb{R}^p
+    x_d = (\operatorname{Weight}(v_1,d,D), \dots , \operatorname{Weight}(v_p,d,D)) \in \mathbb{R}^p
 \end{equation}
 
-The key property of this transformation to note is that the score is computed against each token in the vocabulary, not the document. Any token not appearing in the document receives a score of zero, meaning for a vocabulary of significant size and variety, the vector representation will be mostly composed of features with a value of zero, also known as a sparse vector.
+The key property of this transformation to note is that the weight is computed against each token in the vocabulary, not the document. Any token not appearing in the document receives a weight of zero, meaning for a vocabulary of significant size and variety, the vector representation will be mostly composed of features with a value of zero, also known as a sparse vector.
 
 As evidenced by the construction of the document vectorization in Equation~\ref{eq:sparse-vector}, the tokenization process is a large factor in the success or failure of TF-IDF vectorization. The tokens selected to be a part of the vocabulary play a large role in ensuring the vectorization is an accurate representation of the document throughout the corpus. Leaving too many common tokens results in document vectors which are indistinguishable from one another, while stripping too many away results in a document vector which is so specific to the particular document, it cannot be grouped with other documents in the corpus. This is in essence a partitioning optimization, where the optimal ratio of specificity must be found in order for the vectorization to be representative of the document not only independently, but also as part of the overarching corpus.
 
@@ -205,7 +207,7 @@ Alongside the sequence of tokens, the tokenization step described in Section~\re
 The model outputs one embedding per token, which necessitates a pooling strategy in order to provide the per document representation required by the KNN algorithm. The mean-pooling strategy, described by Tang et al.\ to be the average taken over the output embeddings~\cite{tang/2024/pooling}, is a strategy which does not involve additional training and is applicable to the bidirectional self-attention architecture of the BERT model. This must be taken with respect to the attention mask, as the model still outputs an embedding for the non-representative padding tokens. With the sequence of output embeddings $e=(e_1, e_2, e_3, \dots)$ the document's contextual vectorization is defined in Equation~\ref{eq:dense-vector}.
 
 \begin{equation}\label{eq:dense-vector}
-    z_d = \frac{\sum_{i} {e_i}{a_i}}{\sum_{i} a_i}
+    x_d = \frac{\sum_{i} {e_i}{a_i}}{\sum_{i} a_i}
 \end{equation}
 
 This results in a dense vector in $\mathbb{R}^{768}$ which is entirely independent of the corpus, unlike the vectorization described in Section~\ref{sec:background-lexical-encoding}.
@@ -222,18 +224,18 @@ After implementation of the BERT vectorization method, it was observed that the 
 
 First described by Gao et al.~\cite{gao/2019/representation}, the problem of anisotropy refers to the uneven distribution of contextual embeddings within a the vector space. Geometrically, the vectors are not distributed uniformly within the vector space, instead occupying a narrow cone~\cite{ethayarajh/2019/contextual}. Using direction-based similarity metrics then results in a positive correlation between any two unrelated words~\cite{gao/2019/representation}. Ethayarajh also showed that the anisotropy of embeddings grows with each consecutive model layer~\cite{ethayarajh/2019/contextual}. The actual result of this phenomenon is displayed in Figure~\ref{fig:contextual-dim1-vs-dim2}, which plots the first two dimensions of the document vectorizations produced using the contextual vectorization method.
 
-\begin{figure}\label{fig:contextual-dim1-vs-dim2}
+\begin{figure}
     \centering
     \includegraphics[width=0.75\linewidth]{figures/embedding_d1_d2.png}
-    \caption{First two dimensions of document vectorizations produced with BERT vectorization method.}
+    \caption{First two dimensions of document vectorizations produced with BERT vectorization method.}\label{fig:contextual-dim1-vs-dim2}
 \end{figure}
 
 There is a noticeable shift away from the origin in the first two dimensions, such that direction based comparison techniques, such as the cosine distance metric used in this project, struggle. Stollenwerk et al.\ propose a mitigation strategy they describe as output embedding center (OEC), which involves centering the mean output embedding at the origin~\cite{stollenwerk/2026/output}. This is done by subtracting the mean output embedding from each output embedding, effectively normalizing the magnitude around zero. Biś et al.\ found that output embeddings tend to be isotropic around their center~\cite{bis/2021/much}, suggesting the mean centering strategy restores the isotropic property necessary for direction-based comparison. Figure~\ref{fig:contextual-dim1-vs-dim2-scaled} shows the effect on the first two dimensions of the document vectorizations after applying the mean centering technique.
 
-\begin{figure}\label{fig:contextual-dim1-vs-dim2-scaled}
+\begin{figure}
     \centering
     \includegraphics[width=0.75\linewidth]{figures/embeddings_d1_d2_scaled.png}
-    \caption{The first two dimensions of document vectorizations after applying mean centering.}
+    \caption{The first two dimensions of document vectorizations after applying mean centering.}\label{fig:contextual-dim1-vs-dim2-scaled}
 \end{figure}
 
 \subsection{Measuring Distance}\label{sec:distance}
@@ -262,17 +264,169 @@ The cosine similarity, defined in Equation~\ref{eq:cosine-similarity}~\cite{you/
 
 \section{Methods}\label{sec:methods}
 
-\section{Analysis of Results}\label{sec:analysis}
+This section describes the acquisition and cleaning of the data used to build and evaluate the program, as well as the specific design choices taken during the the implementation stage of this project.
 
-Analysis was conducted across three different categories, attempting to depict not only how effective the classifier described in Section~\ref{sec:methods-scoring} actually is, but also provide points of comparison between the two vectorization methods from~\ref{sec:background}, as well as between this classifier and the GOCat classifier from Gobiell et al.\ \cite{gobeill/2013/managing}. The evaluation metrics will be described in Section~\ref{sec:analysis-metrics}, while the results and interpretation follow in Sections~\ref{sec:analsysis-tuning},~\ref{sec:analsysis-comparison} and~\ref{sec:analsysis-temporal}.
+\subsection{Data Sources}\label{sec:methods-source}
 
-\subsection{Evaluation Metrics}\label{sec:analysis-metrics}
+% TODO: Need to cite properties of go-basic.json found on the website.
 
-In order to accurately assess the effectiveness of the classifier presented in Section~\ref{sec:methods-scoring}, it is important to define metrics which are applicable to the label space of the prediction. In the case of GOCat~\cite{gobeill/2013/managing}, as well as the classifier provided by this project, a prediction is a ranked sequence of terms ordered by score emitted by the scoring function, which was additionally truncated to a maximum allowable length. By contrast, the true labels are an unordered, arbitrary length set with no internal ranking scheme. The ontology itself is also hierarchical by construction, implying the possibility of the classifier predicting a child or parent of the true term. These predictions are not wrong in the binary sense, since there is a relationship between the two terms the classifier may have learned. Thus, any metrics used to evaluate the classifier must take at least a subset of these properties into account. Two types of metrics were found to be applicable and are described in the Sections~\ref{sec:analsysis-metrics-exact} and~\ref{sec:analysis-metrics-hierarchical}.
+This project relies upon three sources of data, each of which accommodates a distinct function. The GO is obtained through the basic release from the GOC~\cite{consortium/2025/gene},  which filters relations to maintain the acyclic property. The basic variant also contains no cross-aspect relations, allowing safe propagation up the hierarchy. Annotations are obtained from the latest GOA~\cite{huntley/2014/database, barrell/2009/database} UniProt archive release which includes the complete cross-species annotation set. The annotation archive provides reference identifiers used to support the existence of an annotation, which are used to acquire article abstracts available through PubMed~\cite{sayers/2024/database}.
+
+\subsection{Database Construction}\label{sec:methods-database}
+
+All data storage is handled by an SQLite database stored locally on disk. The data populated in four distinct stages, three of which are independent of one another. The \verb|terms| and \verb|relations| tables are assembled from the ontology basic release and the \verb|annotations| table from the annotation archive. Once the \verb|annotations| table is constructed, the distinct PubMed identifiers (PMID) within it are used to query the NCBI E-Utilities~\cite{sayers/2024/database} service for publication abstracts, populating the  \verb|citations| table.
+
+\subsubsection{Ontology}\label{sec:methods-database-ontology}
+
+The GO release is in essence a flattened representation of a graph, structured as a list of nodes representing terms and their metadata, alongside a list of edges which represent the relations between nodes. The \verb|terms| table is a mapping from GO identifier (GOID) to the human-readable term name; the prefix to each GOID consisting of \textit{GO:} is removed and each GOID is stored as an integer. The \verb|relations| table stores the edges of the graph, allowing for a full reconstruction of the graph from the data stored in the database.
+
+\subsubsection{Annotations}\label{sec:methods-database-annotations}
+
+The annotation archive is of a tab-delimited format and read line-by-line, extracting three relevant fields from each: the GOID associated with the annotation, the database reference and the date of the annotation. Database references which do not contain a PMID are discarded, removing annotations which are supported by sources other than literature. The remaining rows assert a connection between a publication and the GO term, alongside the date of when that connection was established. Due to the nature of the GOA archive, the same pair of GO term and publication may appear, requiring a conflict resolution strategy. Any conflicting pair of GOID/PMID combinations are overwritten, with the earliest annotation date taking priority.
+
+\subsubsection{Citations}\label{sec:methods-database-citations}
+
+The distinct PMIDs appearing in the \verb|annotations| table are resolved to an article's abstract through the \verb|e-fetch| endpoint of the E-utilities service. Requests are batched and limited to the rate published in the documentation; ten requests per second with a provided API key, and three otherwise. Batches will retry up to three times before raising an exception,  under the assumption that something went wrong in transit as opposed to a configuration error.  Due to the long running nature of this process, batches will only contain PMIDs which are not already populated in the \verb|citations| table, allowing a safe restart if the process fails.
+
+The batch response is contained in an XML document, which is used to extract the raw text abstract and map it to it's associated identifier. In the case that the abstract has additional formatting or is structured in multiple elements, the text is concatenated to construct a single uniform text block, while empty abstracts are ignored.
+
+\subsubsection{Relevant Metadata}\label{sec:methods-database-metadata}
+
+\begin{table}
+    \centering
+    \begin{tabular}{|m{10em}|m{5em}|}
+        \hline
+        Attribute         & Quantity \\
+        \hline
+        \hline
+        Terms             & 48,329   \\
+        \hline
+        Relations         & 71,895   \\
+        \hline
+        Annotation Pairs  & 554,707  \\
+        \hline
+        Annotation PMIDs  & 204,622  \\
+        \hline
+        Annotation GOIDs  & 28,185   \\
+        \hline
+        Final Corpus Size & 202,638  \\
+        \hline
+    \end{tabular}
+    \caption{Metadata related to quantities of data used during experimentation. }\label{tab:metadata}
+\end{table}
+
+In addition to Table~\ref{tab:metadata}, article abstracts in the corpus span the publication date range of 1959 to 2026, while annotations span the range 1999 to 2026. Out of the 202,638 documents in the corpus, there are three duplicates; each contains the text \textit{[Figure: see text].} and hold valid associations to annotations.
+
+Several properties of the data should also be noted. First, of 48,239 GO terms, only 28,185 are referenced by annotations. Due to the nature of the KNN algorithm, only 58\% of the potential label space is ever visible, meaning over 40\% of GO terms will never be predicted regardless of how well they match the input document. Second, the label space is incredibly imbalanced as seen in Figure~\ref{fig:annotation_terms}. Only a small handful of terms are associated with a large majority of annotations, and thus can be expected to be predicted much more frequently.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/annotation_term_count.png}
+    \caption{Term Index vs. Appearances}\label{fig:annotation_terms}
+\end{figure}
+
+\subsection{Corpus Indexing}\label{sec:methods-indexing}
+
+This project utilizes two interchangeable classes which handle the indexing of the 202,638 document corpus depicted in Table~\ref{tab:metadata}: the \verb|TfidfVectorizer| from SKLearn~\cite{pedregosa/2011/scikit-learn}, and a custom \verb|BertEmbeddingsVectorizer| which implements the SKLearn transformer interface in order to fully integrate into an SKLearn workflow~\cite{buitinck/2013/api}.
+
+\subsubsection{Lexical Indexing}\label{sec:methods-indexing-lexical}
+
+The tokenization process described in Section~\ref{sec:background-lexical-tokenization} is extended to account for the more complex sequences of characters found throughout the corpus. Since no cleaning of the text is done prior to the indexing step, the tokenization step instead performs this task through two functional differences from the overview described in Section~\ref{sec:background-lexical-tokenization}
+.
+
+The first of these differences is the removal of apostrophes, punctuation unique in that it appears within a word and cannot be treated as a separator. This is important because the decomposition stage, which splits the document into a sequence of words, splits by whitespace and punctuation using a regular expression. If apostrophes are not removed, word such as \textit{doesn't} are decomposed to \textit{doesn} and \textit{t}.
+
+The second difference is that the Porter stemming algorithm~\cite{porter/1980/algorithm}  is applied selectively, rather than across the entire sequence of words from the decomposition stage. Only alphabetical words are stemmed, while alphanumerical character sequences are deliberately left as is. The stemming algorithm has a tendency to incorrectly strip valid characters from alphanumerical names of compounds or processes, which should be considered as valid context, as seen in Figure~\ref{fig:invalid-stem}.
+
+\begin{figure}
+    \centering
+    \[\textit{rpd3s complex} \xrightarrow {split} (\textnormal{rpd3s}, \textnormal{complex}) \xrightarrow {stem}  (\textnormal{rpd3}, \textnormal{complex})\]
+    \caption{An invalid stemming of a biomedical process.}\label{fig:invalid-stem}
+\end{figure}
+% TODO: cite the sklearn tfidfvectorizer class
+
+This program utilizes the SKLearn \verb|TfidfVectorizer| class~\cite{}, which provides the vectorization functionality described in Section~\ref{sec:background-lexical} using a two step process: pre-computation of the corpus vocabulary and IDF vector using the \verb|fit| method, followed by the actual vectorization of the corpus using the \verb|transform| method. It accepts the tokenization strategy as a constructor parameter, removing the need for a discrete tokenization stage. The IDF vector calculation differs from that of Equation~\ref{eq:idf} in that it accounts for the presence of zero division. The modified version is presented in Equation~\ref{eq:sk-idf}~\cite{}.
+
+\begin{equation}\label{eq:sk-idf}
+    \operatorname{idf_{t, D}} = \log {\frac{|D| + 1}{\operatorname{df}_{t, D} + 1}} + 1
+\end{equation}
+
+Once the vocabulary and IDF vector have been computed, the corpus of raw text documents can be vectorized, in the process referred to as indexing, by passing the sequence of documents to the \verb|transform| method. This returns a sparse matrix which has a row for each document in the corpus, and a column for each term in the corpus vocabulary, and represents the lexical index of the corpus.
+
+The vocabulary and IDF vector are persisted in the \verb|vocabulary| table, and the lexical index is persisted in the \verb|vectorizations| table. Importantly, the sparse matrix is never materialized when it's loaded from the table, meaning memory usage and transfer overhead is minimized.
+
+\subsubsection{Contextual Indexing}\label{sec:methods-indexing-contextual}
+
+% TODO: cite the transformer interface from sklearn
+
+The contextual indexing is handled by a custom transformer as opposed to the built in \verb|TfidfVectorizer| described in Section~\ref{sec:methods-indexing-lexical}. This is a custom class which implements the \verb|fit|, \verb|transform| and \verb|fit_transform| methods in order to integrate into an SKLearn workflow~\cite{}. This allows for significant simplification of the testing procedure described later in Section~\ref{sec:analysis}.
+
+Utilizing the Transformers library from Wolf et al.\ \cite{wolf/2020/transformers}, the BiomedBERT model is automatically initialized with the correct configuration upon calling the \verb|fit| method of the \verb|BertEmbeddingsVectorizer|. No actual fitting to the corpus is done however, since the output embeddings of the model are entirely independent of the corpus, as described in Section~\ref{sec:background-contextual-embeddings}.
+
+% TODO: need citation for pytorch
+
+Document vectorization using the \verb|transform| method is performed in batches. Each document in the batch is decomposed into token sequences by the WordPiece algorithm described in Section~\ref{sec:background-contextual-embeddings}, and truncated to the maximum token sequence length tolerated by the model. In the case of the BERT architecture, this is 512 tokens~\cite{sun/2019/finetune}. The accompanying attention mask is also constructed during the tokenization step.
+
+The library used for inference is PyTorch~\cite{}, which utilizes the \verb|Tensor| class to represent the input embeddings passed to the model. PyTorch defines a tensor as `a multi-dimensional matrix containing elements of a single data type'~\cite{} and expects multi-dimensional tensors to be rectangular. As such, any token sequence shorter than the longest token sequence across the batch is padded using the padding token to ensure this rectangular shape.
+
+Output embeddings are then mean-pooled using the strategy from Section~\ref{sec:background-contextual-pooling} with respect to the attention mask. Utilizing the attention mask is vital in this step, as padding tokens are also processed by the model, but do not represent any actual context within the input sequence. The pooled result is representative of a singular document vectorization, and once the full corpus has been batch-inferred, the contextual indexing process is complete. Importantly, the mean centering strategy described in Section~\ref{sec:background-contextual-anisotropy}  and developed by Stollenwerk et al.\ \cite{stollenwerk/2026/output} is not applied in this step, as it must be evaluated across the full contextual index, as opposed to the batched result of this method.
+
+Contextual vectorizations emitted by \verb|BertEmbeddingsTokenizer| are stored as a serialized array. Each embedding, a vector in $\mathbb{R}^{768}$, is serialized using the Pickle utility and stored as byte blob. As such, no reconstruction of the vector is necessary upon initialization, simply de-serialization.
+
+\subsection{Classification and Scoring}\label{sec:methods-scoring}
+
+The main classification mechanism of the program utilizes a brute-force KNN algorithm provided by SKLearn's \verb|NearestNeighbors| estimator to calculate the cosine distance between a vectorized document $x_{test}$ to each document vectorization in the index $X_D$ of the corpus. This index is acquired by either of the two indexing methods described in Section~\ref{sec:methods-indexing}, as the \verb|NearestNeighbors| estimator accepts both dense and sparse input.
+
+\subsubsection{Document Scoring}\label{methods-scoring-document}
+
+Let $k \in [1, K]$ such that algorithm determines at most $K$ neighbors. The result of the algorithm is then an ordered sequence of indices $(i_1, \dots, i_K)$ into $X_D$, alongside the ordered sequence of the associated distances $(s_1, \dots, s_K)$. The indices can can be mapped to the ordered sequence of vectorizations $(x_1, \dots, x_K)$, in order to establish that the $k$-th neighbor of $x_{test}$ is $x_k$ at a distance of $s_k$.
+
+\begin{equation}\label{eq:amp-sim}
+    \hat{s}_k = {(1-s_k)}^\rho \in [-1, 1]
+\end{equation}
+
+Let $\rho$ be some odd integer such that $\rho \in \{1,3,5,\dots\}$ in order to define the transformation of a distance $s_k$ into an amplified similarity $\hat{s}_k$, described in Equation~\ref{eq:amp-sim}. This process reverts the distance back to a similarity, and then takes it to an exponent $\rho$; a method proposed by Breese et al.\ in order to emphasizes closer matches while punishing further matches~\cite{bresse/1998/emprirical}. In order to prevent sign degeneration, $\rho$ must be an odd integer.
+
+\subsubsection{The Prediction Sequence}
+
+\begin{equation}
+    \operatorname{Score}(t) = \sum_{k=1}^{K} \hat{s}_k\ [t \in T_k]
+    \label{eq:pred-score}
+\end{equation}
+
+Let $T_k$ be the set of GO terms annotated to a document $d_k$ with vectorization $x_k$. Then for some GO term $t$, it's score is defined by Equation~\ref{eq:pred-score}; the aggregate of similarities $\hat{s}_k$ for all documents $d_k$ for which $t$ is annotated to. Let $Y_K= \bigcup_{k=1}^K T_k$ be the set of all GO terms which have been annotated to a document appearing in the neighbor sequence, and define $q=|Y_K|$ to be the total number of terms in this set. The predicted sequence $\hat{T}$ is the sequence of terms sorted on the term's score, defined in Equation~\ref{eq:pred-sequence}.
+
+\begin{equation}\label{eq:pred-sequence}
+    \hat{T} = (t_1, \dots, t_q) \textnormal{ with } \operatorname{Score}(t_i) \leq \operatorname{Score}(t_{i+1})
+\end{equation}
+
+To give a practical example, suppose $K=2$ such that $(\hat{s}_1, \hat{s}_2) = (0.5, 0.25)$ and $(T_1, T_2) = (\{t_1, t_2\},\{t_2, t_3\})$,  such that $Y_K = \{t_1, t_2, t_3\}$ with $q=3$. Then $\operatorname{Score}(t_1) = 0.5$, $\operatorname{Score}(t_2) = 0.75$, and $\operatorname{Score}(t_3) = 0.25$, resulting in the prediction sequence $\hat{T} = (t_2, t_1, t_3)$.
+
+\subsubsection{Truncation}\label{sec:methods-scoring-truncation}
+
+Larger values of $K$ introduce more terms into $Y_K$ and thus transitively increases the length of $\hat{T}$. While this increase is entirely dependent on the terms annotated to the neighbor documents, for large values of $K$ the tail of $\hat{T}$ is often full of low scoring, poor matching terms. In order to reduce the length of the prediction sequence, Gobiell et al.\ introduced a truncation parameter which took the $L$ highest scoring terms and discarded the rest~\cite{gobeill/2013/managing}. Let $L \leq q$ such that the truncated prediction sequence $\hat{T}_L = (t_1, \dots, t_L)$. This truncated sequence is representative of the final prediction sequence emitted by the classifier.
+
+\subsubsection{Hyperparameters}
+
+Based on the process defined above, the classifier is then governed by two hyperparameters: the number of neighbors $K$ and the amplification exponent $\rho$. The number of neighbors directly influences the size of $Y_K$, or total number of terms which are scored. For a term annotated to every neighbor document, it's score is equivalent to $\sum_{k=1}^K \hat{s}_k$, and is thus also governed by the number of neighbors.
+
+The amplification parameter directly influences the scoring mechanism by increasing the influence of documents at the extremes of the distance range while decreasing the influence of documents near a similarity of zero. Figure~\ref{fig:rho-vis} depicts the transformation of $s_k \rightarrow \hat{s}_k$ at various amplification levels.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/score_with_rho.png}
+    \caption{Similarity amplification at $\rho \in \{1,3,5\}$.}\label{fig:placeholder}
+\end{figure}
+
+While the truncation parameter $L$ does influence the output, and is evaluated alongside the hyperparameters in Section~\ref{sec:analsysis-tuning}, it is not a true hyperparameter as it does not change the scoring in any way. The highest scoring term will be the same regardless of $L=1$ or $L=200$. Gobiell et al.\ used this parameter as a way to measure GOCat's effectiveness in different scenarios. They state for a process `where a user has to screen the output list to select correct and ignore incorrect predictions' that `screening 20 terms is a realistic scenario'~\cite{gobeill/2013/managing}.
+
+\subsection{Evaluation Metrics}\label{sec:methods-metrics}
+
+In order to accurately assess the effectiveness of the classifier presented in Section~\ref{sec:methods-scoring}, it is important to define metrics which are applicable to the label space of the prediction. In the case of GOCat~\cite{gobeill/2013/managing}, as well as the classifier provided by this project, a prediction is a ranked sequence of terms ordered by score emitted by the scoring function, which was additionally truncated to a maximum allowable length. By contrast, the true labels are an unordered, arbitrary length set with no internal ranking scheme. The ontology itself is also hierarchical by construction, implying the possibility of the classifier predicting a child or parent of the true term. These predictions are not wrong in the binary sense, since there is a relationship between the two terms the classifier may have learned. Thus, any metrics used to evaluate the classifier must take at least a subset of these properties into account. Two types of metrics were found to be applicable and are described in the Sections~\ref{sec:methods-metrics-exact} and~\ref{sec:methods-metrics-hierarchical}.
 
 Let $D_{test}$ represent the set of test documents, such that $T_d=\{ t_1, \dots, t_n \}$ is the set of $n$ terms annotated to document $d \in D_{test}$, and $\hat{T}_d=(\hat{t}_1, \dots , \hat{t}_l )$ be the ranked prediction sequence returned by the classifier which has been truncated to a fixed length of $l$.
 
-\subsubsection{Exact Matching}\label{sec:analsysis-metrics-exact}
+\subsubsection{Exact Matching}\label{sec:methods-metrics-exact}
 
 The first set of metrics treats the label space of terms to be independent of one another, only considering exact matches during evaluation. Used Gobiell et al.\ to evaluate GOCat~\cite{gobeill/2013/managing}, these two metrics represent the model's ability to exactly predict the desired label space, with no consideration for the hierarchical nature of the ontology.
 
@@ -301,9 +455,9 @@ The macro-average recall (MAR), defined in equation~\ref{eq:mar}, measures the p
 
 Importantly, each term contributes equally to the average, so terms which are disproportionally represented within the test set are not given precedence.
 
-\subsubsection{Hierarchical}\label{sec:analysis-metrics-hierarchical}
+\subsubsection{Hierarchical}\label{sec:methods-metrics-hierarchical}
 
-The deficit of the the metrics defined in Section~\ref{sec:analsysis-metrics-exact} is the lack of consideration for the relationship between terms. A term which sits one level above the expected term scores just as badly as a term which appears in a separate aspect altogether, which invalidates the ontology's structure entirely. Verspoor et al.\ demonstrated that the standard multi-label evaluation metrics of precision, recall and F-score report poor performance due to this lack of consideration~\cite{verspoor/2006/categorization}, and propose extensions to these metrics which take the strength of the relationship between terms into account. Here ${\uparrow} t$ and ${\uparrow} \hat{t}$ represent the lineage expansions of a true and predicted term respectively. In plain words, these are the sets containing a term and all of it's ancestors.
+The deficit of the the metrics defined in Section~\ref{sec:methods-metrics-exact} is the lack of consideration for the relationship between terms. A term which sits one level above the expected term scores just as badly as a term which appears in a separate aspect altogether, which invalidates the ontology's structure entirely. Verspoor et al.\ demonstrated that the standard multi-label evaluation metrics of precision, recall and F-score report poor performance due to this lack of consideration~\cite{verspoor/2006/categorization}, and propose extensions to these metrics which take the strength of the relationship between terms into account. Here ${\uparrow} t$ and ${\uparrow} \hat{t}$ represent the lineage expansions of a true and predicted term respectively. In plain words, these are the sets containing a term and all of it's ancestors.
 
 \begin{multicols}{2}
     \begin{equation}\label{eq:hpd}
@@ -341,9 +495,13 @@ For hierarchical precision, this definition makes the several key distinctions w
 
 Verspoor et al.\ describe the characteristics of the metrics by comparing situations where there is a single prediction and single truth. If the prediction is a descendant of the expected term, then $HR=1$ and $HP<1$. In the opposite situation, where the prediction is an ancestor of the expected term, $HR < 1$ while $HP=1$. Thus a classifier which scores highly on $HR$ and poorly on $HP$ is generally predicting terms which are more specific than expected and vice versa~\cite{verspoor/2006/categorization}.
 
-\subsubsection{Comparability}\label{sec:analysis-metrics-comparability}
+\subsubsection{Comparability}\label{sec:methods-metrics-comparability}
 
 Equations~\ref{eq:mrr} (MRR),~\ref{eq:hp} (HP),~\ref{eq:hr} (HR) and~\ref{eq:hf} (HF) are defined per document, and then averaged over the whole test set, while equation~\ref{eq:mar} (MAR) is defined per-term and averaged over all terms in the test set, depicting a fundamental difference in axis for the metrics. As a result, it is inaccurate to compare MAR and HR, despite both representing a form of recall. Additionally, Gobiell et al.\ treated MRR as a precision metric in their tests~\cite{gobeill/2013/managing}, but due to it's construction around rank sensitivity, it cannot be compared to the HP metric either. Lastly, the hierarchical metrics are not comparable to their standard counterparts. Verspoor et al.\ note that `HP and HR will always be higher than the corresponding P and R values for a given test set' and are `not comparable metrics'~\cite{verspoor/2006/categorization}. Aligned with the reasoning stated above, all metrics will be reported independently, and not compared among each other in the following sections. The primary driving force of the analysis is thus the change in these metrics, as opposed to directly comparing them.
+
+\section{Analysis of Results}\label{sec:analysis}
+
+Analysis was conducted across three different categories, attempting to depict not only how effective the classifier described in Section~\ref{sec:methods-scoring} actually is, but also provide points of comparison between the two vectorization methods from~\ref{sec:background}, as well as between this classifier and the GOCat classifier from Gobiell et al.\ \cite{gobeill/2013/managing}.
 
 \subsection{Hyperparameter Tuning}\label{sec:analsysis-tuning}
 
