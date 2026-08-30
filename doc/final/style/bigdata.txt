@@ -30,7 +30,7 @@
   \end{center}
   \vfill
   \begin{center}
-    \includegraphics[width=0.4\textwidth]{RHULlogo.jpg}%
+    \includegraphics[width=0.4\textwidth]{style/logo.jpg}%
   \end{center}
   \@thanks
   \begin{center}
@@ -64,7 +64,7 @@
   \end{center}
   This report has been prepared on the basis of my own work.
   Where other published and unpublished source materials have been used,
-  these have been acknowledged. 
+  these have been acknowledged.
   \begin{description}
   \item[Word Count:]
   \item[Student Name: Anonymous]
