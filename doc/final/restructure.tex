@@ -264,9 +264,9 @@ The cosine similarity, defined in Equation~\ref{eq:cosine-similarity}~\cite{you/
 
 \section{Analysis of Results}\label{sec:analysis}
 
-\subsection{Evaluation Metrics}\label{sec:analysis-metrics}
+Analysis was conducted across three different categories, attempting to depict not only how effective the classifier described in Section~\ref{sec:methods-scoring} actually is, but also provide points of comparison between the two vectorization methods from~\ref{sec:background}, as well as between this classifier and the GOCat classifier from Gobiell et al.\ \cite{gobeill/2013/managing}. The evaluation metrics will be described in Section~\ref{sec:analysis-metrics}, while the results and interpretation follow in Sections~\ref{sec:analsysis-tuning},~\ref{sec:analsysis-comparison} and~\ref{sec:analsysis-temporal}.
 
-% TODO: Explain how this relates to the program, and why research needed to be conducted on this.
+\subsection{Evaluation Metrics}\label{sec:analysis-metrics}
 
 In order to accurately assess the effectiveness of the classifier presented in Section~\ref{sec:methods-scoring}, it is important to define metrics which are applicable to the label space of the prediction. In the case of GOCat~\cite{gobeill/2013/managing}, as well as the classifier provided by this project, a prediction is a ranked sequence of terms ordered by score emitted by the scoring function, which was additionally truncated to a maximum allowable length. By contrast, the true labels are an unordered, arbitrary length set with no internal ranking scheme. The ontology itself is also hierarchical by construction, implying the possibility of the classifier predicting a child or parent of the true term. These predictions are not wrong in the binary sense, since there is a relationship between the two terms the classifier may have learned. Thus, any metrics used to evaluate the classifier must take at least a subset of these properties into account. Two types of metrics were found to be applicable and are described in the Sections~\ref{sec:analsysis-metrics-exact} and~\ref{sec:analysis-metrics-hierarchical}.
 
