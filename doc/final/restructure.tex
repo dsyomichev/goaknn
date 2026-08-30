@@ -364,7 +364,9 @@ Document vectorization using the \verb|transform| method is performed in batches
 
 The library used for inference is PyTorch~\cite{ansel/2024/pytorch}, which utilizes the \verb|Tensor| class to represent the input embeddings passed to the model. PyTorch defines a tensor as `a multi-dimensional matrix containing elements of a single data type'~\cite{pytorch/2026/tensor} and expects multi-dimensional tensors to be rectangular. As such, any token sequence shorter than the longest token sequence across the batch is padded using the padding token to ensure this rectangular shape.
 
-Output embeddings are then mean-pooled using the strategy from Section~\ref{sec:background-contextual-pooling} with respect to the attention mask. Utilizing the attention mask is vital in this step, as padding tokens are also processed by the model, but do not represent any actual context within the input sequence. The pooled result is representative of a singular document vectorization, and once the full corpus has been batch-inferred, the contextual indexing process is complete. Importantly, the mean centering strategy described in Section~\ref{sec:background-contextual-anisotropy}  and developed by Stollenwerk et al.\ \cite{stollenwerk/2026/output} is not applied in this step, as it must be evaluated across the full contextual index, as opposed to the batched result of this method.
+Output embeddings are then mean-pooled using the strategy from Section~\ref{sec:background-contextual-pooling} with respect to the attention mask. Utilizing the attention mask is vital in this step, as padding tokens are also processed by the model, but do not represent any actual context within the input sequence. The pooled result is representative of a singular document vectorization, and once the full corpus has been batch-inferred, the contextual indexing process is complete.
+
+Importantly, the mean centering strategy described in Section~\ref{sec:background-contextual-anisotropy}  and developed by Stollenwerk et al.\ \cite{stollenwerk/2026/output} is not applied within the \verb|BertEmbeddingsVectorizer| class, as it must be evaluated across the full index, as opposed to the batched result of this method. When the full corpus has been vectorized, the SKLearn \verb|StandardScaler|~\cite{sklearn/2026/standardscaler} with no scaling to unit variance is utilized to achieve the centering.
 
 Contextual vectorizations emitted by \verb|BertEmbeddingsTokenizer| are stored as a serialized array. Each embedding, a vector in $\mathbb{R}^{768}$, is serialized using the Pickle utility~\cite{python/2026/pickle} and stored as byte blob~\cite{sqlite/2026/datatypes}. As such, no reconstruction of the vector is necessary upon initialization, simply de-serialization.
 
@@ -372,7 +374,7 @@ Contextual vectorizations emitted by \verb|BertEmbeddingsTokenizer| are stored a
 
 The main classification mechanism of the program utilizes a brute-force KNN algorithm provided by SKLearn's \verb|NearestNeighbors| estimator to calculate the cosine distance between a vectorized document $x_{test}$ to each document vectorization in the index $X_D$ of the corpus. This index is acquired by either of the two indexing methods described in Section~\ref{sec:methods-indexing}, as the \verb|NearestNeighbors| estimator accepts both dense and sparse input~\cite{sklearn/2026/nearestneighbors}.
 
-\subsubsection{Document Scoring}\label{methods-scoring-document}
+\subsubsection{Document Scoring}\label{sec:methods-scoring-document}
 
 Let $k \in [1, K]$ such that algorithm determines at most $K$ neighbors. The result of the algorithm is then an ordered sequence of indices $(i_1, \dots, i_K)$ into $X_D$, alongside the ordered sequence of the associated distances $(s_1, \dots, s_K)$. The indices can can be mapped to the ordered sequence of vectorizations $(x_1, \dots, x_K)$, in order to establish that the $k$-th neighbor of $x_{test}$ is $x_k$ at a distance of $s_k$.
 
@@ -382,7 +384,7 @@ Let $k \in [1, K]$ such that algorithm determines at most $K$ neighbors. The res
 
 Let $\rho$ be some odd integer such that $\rho \in \{1,3,5,\dots\}$ in order to define the transformation of a distance $s_k$ into an amplified similarity $\hat{s}_k$, described in Equation~\ref{eq:amp-sim}. This process reverts the distance back to a similarity, and then takes it to an exponent $\rho$; a method proposed by Breese et al.\ in order to emphasizes closer matches while punishing further matches~\cite{bresse/1998/emprirical}. In order to prevent sign degeneration, $\rho$ must be an odd integer.
 
-\subsubsection{The Prediction Sequence}
+\subsubsection{The Prediction Sequence}\label{sec:methods-scoring-sequence}
 
 \begin{equation}
     \operatorname{Score}(t) = \sum_{k=1}^{K} \hat{s}_k\ [t \in T_k]
@@ -401,7 +403,7 @@ To give a practical example, suppose $K=2$ such that $(\hat{s}_1, \hat{s}_2) = (
 
 Larger values of $K$ introduce more terms into $Y_K$ and thus transitively increases the length of $\hat{T}$. While this increase is entirely dependent on the terms annotated to the neighbor documents, for large values of $K$ the tail of $\hat{T}$ is often full of low scoring, poor matching terms. In order to reduce the length of the prediction sequence, Gobiell et al.\ introduced a truncation parameter which took the $L$ highest scoring terms and discarded the rest~\cite{gobeill/2013/managing}. Let $L \leq q$ such that the truncated prediction sequence $\hat{T}_L = (t_1, \dots, t_L)$. This truncated sequence is representative of the final prediction sequence emitted by the classifier.
 
-\subsubsection{Hyperparameters}
+\subsubsection{Hyperparameters}\label{sec:methods-scoring-hyperparameters}
 
 Based on the process defined above, the classifier is then governed by two hyperparameters: the number of neighbors $K$ and the amplification exponent $\rho$. The number of neighbors directly influences the size of $Y_K$, or total number of terms which are scored. For a term annotated to every neighbor document, it's score is equivalent to $\sum_{k=1}^K \hat{s}_k$, and is thus also governed by the number of neighbors.
 
@@ -499,6 +501,63 @@ Equations~\ref{eq:mrr} (MRR),~\ref{eq:hp} (HP),~\ref{eq:hr} (HR) and~\ref{eq:hf}
 Analysis was conducted across three different categories, attempting to depict not only how effective the classifier described in Section~\ref{sec:methods-scoring} actually is, but also provide points of comparison between the two vectorization methods from~\ref{sec:background}, as well as between this classifier and the GOCat classifier from Gobiell et al.\ \cite{gobeill/2013/managing}.
 
 \subsection{Hyperparameter Tuning}\label{sec:analsysis-tuning}
+
+As previously mentioned in Section~\ref{sec:methods-scoring-hyperparameters} there are a total of two hyperparameters which hold sway over the classifier: the number of neighbors $K$ and the amplification exponent $\rho$. Because the optimal value of these parameters is a function of the dataset as opposed to the implementation, an exhaustive search must be performed across a selection of potential values. This task is achieved using the SKLearn \verb|GridSearchCV| class~\cite{sklearn/2026/gridsearchcv}, which performs a cross-validation across the train and test sets for each of the potential parameter combinations, and can be provided with a custom scoring function.
+
+As alluded to in Section~\ref{sec:methods-scoring-hyperparameters}, the truncation limit $L$ is also considered a hyperparameter within the exhaustive search, but it's purpose exists in only to determine the best combinations of $K$ and $\rho$ for each potential value of $L$, in accordance to the use case argument made by Gobiell et al.\ \cite{gobeill/2013/managing}. The search is performed over the values of $K \in \{ 25, 50, 100, 200 \}$, $\rho=\{1,3,5\}$ and $L=\{5,10,20\}$ across all 36 combinations. Each combination is evaluated over 10 randomly shuffled folds of the full 202, 638 document corpus using a fixed seed to ensure identical shuffling across vectorization methods. Each of the metrics defined in Section~\ref{sec:methods-metrics} by Equations~\ref{eq:mrr} (MRR),~\ref{eq:mar} (MAR),~\ref{eq:hp} (HP),~\ref{eq:hr} (HR) and~\ref{eq:hf} (HF) are evaluated for both vectorization methods, the results of which are summarized in Table~\ref{tab:both_optimal_sel}.
+\begin{table}
+    \centering
+    \begin{tabular}{| m{4em} | m{2em} | m{2em} | m{3em} | m{3em} | m{3em} | m{3em} | m{3em} |}
+        \hline
+        Method & $K$ & $\rho$ & MRR            & \textit{MAR}   & HP             & HR             & \textit{HF}    \\
+        \hline
+        \hline
+        TF-IDF & 100 & 3      & \textbf{0.448} & \textbf{0.386} & 0.284          & 0.829          & 0.397          \\
+        \hline
+        BERT   & 25  & 5      & \textbf{0.419} & \textbf{0.269} & 0.311          & 0.806          & 0.422          \\
+        \hline
+        \hline
+        TF-IDF & 200 & 1      & 0.442          & 0.357          & \textbf{0.299} & \textbf{0.840} & \textbf{0.413} \\
+        \hline
+        BERT   & 100 & 5      & 0.417          & 0.257          & \textbf{0.326} & \textbf{0.813} & \textbf{0.437} \\
+        \hline
+    \end{tabular}
+    \caption{Optimal $K$ and $\rho$ when maximizing MAR and HF metrics.}\label{tab:both_optimal_sel}
+\end{table}
+
+As evidenced by table~\ref{tab:both_optimal_sel}, the vectorization methods each achieve better results across differing metrics. TF-IDF vectorization scored significantly better with the MAR metric, with a difference of about 0.117, and also outperforms the BERT method by 0.029 on the MRR metric. The interpretation becomes less clear with the hierarchical metrics, as the TF-IDF method outscores the BERT method in HR by 0.07, but is outscored by 0.027 on HP and 0.024 on HF.\@It is important to note that these patterns hold for the suboptimal hyperparameter values depicted by the non-bold columns of Table~\ref{tab:both_optimal_sel}. Additionally, these results can be connected to the characteristics of the hierarchy metrics described by Verspoor et al.\ \cite{verspoor/2006/categorization}, it can be inferred that the TF-IDF based classification tends to predict descendants of the expected terms, while the BERT based classification more frequently predicts ancestors.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{figures/hyperparameters_tfidf.png}
+    \caption{Hyperparameter trend for TF-IDF vectorization with non-depicted hyperparameters fixed at $L=20$. Triangle represents the best value.}\label{fig:tfidf_hyp_trend}
+\end{figure}
+
+Trends for the $K$ and $\rho$ hyperparameters are shown by Figures~\ref{fig:tfidf_hyp_trend} and~\ref{fig:bert_hyp_trend}. The non-varied parameter is fixed at it's optimal value maximizing HF.\@The increasing value of $K$ improves the TF-IDF vectorizer with diminishing returns as $K \rightarrow 200$, and differs from the behavior of the BERT vectorizer, which peaks at $K=100$. This suggests that the KNN algorithm is more sensitive using the TF-IDF vectorization, returning more valid neighbors in the tail of the result which contribute to the term scoring function described in Section~\ref{sec:methods-scoring-sequence}, while the BERT vectorization returns more unrelated noise, which interferes with the same scoring function.
+\begin{figure}
+    \centering
+    \includegraphics[width=1\linewidth]{figures/hyperparameters_bert.png}
+    \caption{Hyperparameter trend for BERT vectorization with non-depicted hyperparameters fixed at $L=20$.}\label{fig:bert_hyp_trend}
+\end{figure}
+
+Amplification also behaves differently between the two, such that the TF-IDF scores substantially worse with higher amplification, while BERT prefers $\rho=5$, but only marginally so. This is due to the structural differences between the vectorization methods. Table~\ref{tab:mean_distance_at} depicts the mean difference between the nearest neighbor, as well as the mean distance for the 25th neighbor, demonstrating the distribution of neighbors within the space.
+
+\begin{table}
+    \centering
+    \begin{tabular}{| m{4em} | m{3em} | m{3em} | m{3em} |}
+        \hline
+        Method & $k=1$  & $k=25$ & $\Delta$ \\
+        \hline
+        \hline
+        TF-IDF & 0.4536 & 0.7304 & 0.2768   \\
+        \hline
+        BERT   & 0.0036 & 0.0048 & 0.0012   \\
+        \hline
+    \end{tabular}
+    \caption{Mean distance to $k$-th nearest neighbor for $k=1$ and $k=25$ across both vectorization methods.}\label{tab:mean_distance_at}
+\end{table}
+
+This result demonstrates the difference between the two methods. Even accounting for the mean-centering performed on the BERT embeddings, the relative distance between the upper end of the nearest neighbors result shows a very small absolute difference between the distances. When considering to the possible range of cosine distance, the TF-IDF scores differ by about 13\%, while the BERT embeddings differ by only 0.6\%. Because scores are not normalized to a static range, as would be the case if using a min-max normalization scheme, the absolute contribution of a neighbor at $k=1$ and $k=25$ is nearly indistinguishable, which is the reason higher amplification improves the result using BERT vectorization. By accentuating more extreme neighbor similarities, and squeezing near-orthogonal neighbors towards zero, the scoring method is able to distinguish the contributions of closer neighbors. This technique is not effective using the TF-IDF method because the scores are much more uniformly distributed, and amplification instead over-compensates the contributions of closer neighbors.
 
 \subsection{Head-to-Head Comparison}\label{sec:analsysis-comparison}
 
