@@ -504,7 +504,7 @@ Analysis was conducted across three different categories, attempting to depict n
 
 As previously mentioned in Section~\ref{sec:methods-scoring-hyperparameters} there are a total of two hyperparameters which hold sway over the classifier: the number of neighbors $K$ and the amplification exponent $\rho$. Because the optimal value of these parameters is a function of the dataset as opposed to the implementation, an exhaustive search must be performed across a selection of potential values. This task is achieved using the SKLearn \verb|GridSearchCV| class~\cite{sklearn/2026/gridsearchcv}, which performs a cross-validation across the train and test sets for each of the potential parameter combinations, and can be provided with a custom scoring function.
 
-As alluded to in Section~\ref{sec:methods-scoring-hyperparameters}, the truncation limit $L$ is also considered a hyperparameter within the exhaustive search, but it's purpose exists in only to determine the best combinations of $K$ and $\rho$ for each potential value of $L$, in accordance to the use case argument made by Gobiell et al.\ \cite{gobeill/2013/managing}. The search is performed over the values of $K \in \{ 25, 50, 100, 200 \}$, $\rho=\{1,3,5\}$ and $L=\{5,10,20\}$ across all 36 combinations. Each combination is evaluated over 10 randomly shuffled folds of the full 202, 638 document corpus using a fixed seed to ensure identical shuffling across vectorization methods. Each of the metrics defined in Section~\ref{sec:methods-metrics} by Equations~\ref{eq:mrr} (MRR),~\ref{eq:mar} (MAR),~\ref{eq:hp} (HP),~\ref{eq:hr} (HR) and~\ref{eq:hf} (HF) are evaluated for both vectorization methods, the results of which are summarized in Table~\ref{tab:both_optimal_sel}.
+As alluded to in Section~\ref{sec:methods-scoring-hyperparameters}, the truncation limit $L$ is also considered a hyperparameter within the exhaustive search, but it's purpose exists in only to determine the best combinations of $K$ and $\rho$ for each potential value of $L$, in accordance to the use case argument made by Gobiell et al.~\cite{gobeill/2013/managing}. The search is performed over the values of $K \in \{ 25, 50, 100, 200 \}$, $\rho=\{1,3,5\}$ and $L=\{5,10,20\}$ across all 36 combinations. Each combination is evaluated over 10 randomly shuffled folds of the full 202,638 document corpus using a fixed seed to ensure identical shuffling across vectorization methods. Each of the metrics defined in Section~\ref{sec:methods-metrics} by Equations~\ref{eq:mrr} (MRR),~\ref{eq:mar} (MAR),~\ref{eq:hp} (HP),~\ref{eq:hr} (HR) and~\ref{eq:hf} (HF) are evaluated for both vectorization methods, the results of which are summarized in Table~\ref{tab:both_optimal_sel} at a fixed truncation length of $L=20$.
 \begin{table}
     \centering
     \begin{tabular}{| m{4em} | m{2em} | m{2em} | m{3em} | m{3em} | m{3em} | m{3em} | m{3em} |}
@@ -522,7 +522,7 @@ As alluded to in Section~\ref{sec:methods-scoring-hyperparameters}, the truncati
         BERT   & 100 & 5      & 0.417          & 0.257          & \textbf{0.326} & \textbf{0.813} & \textbf{0.437} \\
         \hline
     \end{tabular}
-    \caption{Optimal $K$ and $\rho$ when maximizing MAR and HF metrics.}\label{tab:both_optimal_sel}
+    \caption{Optimal $K$ and $\rho$ when maximizing MAR and HF metrics at $L=20$.}\label{tab:both_optimal_sel}
 \end{table}
 
 As evidenced by table~\ref{tab:both_optimal_sel}, the vectorization methods each achieve better results across differing metrics. TF-IDF vectorization scored significantly better with the MAR metric, with a difference of about 0.117, and also outperforms the BERT method by 0.029 on the MRR metric. The interpretation becomes less clear with the hierarchical metrics, as the TF-IDF method outscores the BERT method in HR by 0.07, but is outscored by 0.027 on HP and 0.024 on HF.\@It is important to note that these patterns hold for the suboptimal hyperparameter values depicted by the non-bold columns of Table~\ref{tab:both_optimal_sel}. Additionally, these results can be connected to the characteristics of the hierarchy metrics described by Verspoor et al.\ \cite{verspoor/2006/categorization}, it can be inferred that the TF-IDF based classification tends to predict descendants of the expected terms, while the BERT based classification more frequently predicts ancestors.
@@ -561,7 +561,55 @@ This result demonstrates the difference between the two methods. Even accounting
 
 \subsection{Head-to-Head Comparison}\label{sec:analsysis-comparison}
 
+The values provided by table~\ref{tab:both_optimal_sel} are only a selection over the maximal scores of MAR and HF, which are not representative of the exhaustive search as a whole. In order to demonstrate the preference of metric type displayed by each method, a winner can be depicted as a binary value. Figures~\ref{fig:method_h2h_mar} and~\ref{fig:method_h2h_hf} represent the parameter selection at each of  $L \in {5, 10, 20}$. If the TF-IDF method scored better on a particular combination, that square is filled in with black, with the combinations over which the BERT method scored better being filled with white.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{figures/tfidf_versus_bert_mar.png}
+    \caption{Head to head comparison of TF-IDF vs. BERT over MAR metric.}\label{fig:method_h2h_mar}
+\end{figure}
+
+As evidenced by figure~\ref{fig:method_h2h_mar}, the TF-IDF vectorizer presents the better MAR score across all 36 combinations, with scores averaged over each of the 10 folds. This indicates that the TF-IDF vectorizer was able to more accurately determine the exact terms annotated to each document in the fold's testing set. This is a per-term score, indicating that uncommon terms were better represented in predictions using the TF-IDF transformation method.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{figures/tfidf_versus_bert_hf.png}
+    \caption{Head to head comparison of TF-IDF vs. BERT over HF metric.}\label{fig:method_h2h_hf}
+\end{figure}
+
+Conversely, the BERT vectorizer scored better over the HF metric across 34 out of 36 combinations. The only outliers were at  $L=5$ and $K=200$, and are truly outliers since at a truncation limit of five, the scoring algorithm described in Section~\ref{sec:methods-scoring} cannot effectively filter noise from the aggregation result.
+
 \subsection{Temporal Evolution}\label{sec:analsysis-temporal}
+
+Mirroring the experiment conducted by Gobiell et al.\ in nature but not in construction, the pseudo-temporal analysis provides a measurement of the classifiers effectiveness as the quantity of available data grows. This is not a true comparison to the results provided by Gobiell et al.\ \cite{gobeill/2013/managing}, since historic releases of the GO and annotations archive were not utilized. Unlike a true cross validation, the annotations are grouped by their earliest recorded year within the archive, and train/test splits are generated iteratively.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{figures/historical_train_test_split_size.png}
+    \caption{Train/Test split sizes per-year for the temporal evaluation.}\label{fig:hist_sizes}
+\end{figure}
+
+For each year starting in 1999, a nested mapping is constructed per-year per-document such that it is first keyed on the year of annotation, and then the documents PMID.\@ Importantly, this mapping makes distinct the year the annotation was made, rather than aggregating each document's annotations, and does so with respect to the earliest date available for an annotation, as described in Section~\ref{sec:methods-database-annotations}.  If a document was annotated with year term $t_a$  in year $y_a$, and term $t_b$ in year $y_b > y_a$, then the mapping for the document in year $y_b$ will not contain term $t_a$. The testing set only contains the documents with annotations made in that year, while the training set is the union of all previous years. The size comparison between the train and test sets in each year is provided in table~\ref{fig:hist_sizes}.
+
+Because a document can be annotated to multiple terms over multiple years, the testing set includes the document and all of the terms which were annotated to it in previous years alongside the current year. This potentially introduces leakage of the testing set, since a partially complete set of terms for a document could be present in the training set. To mitigate this, exact matches are excluded entirely from the scoring process, and have no bearing on the final metric scores, which effectively asks the classifier to predict all terms for a document without knowledge of it's annotations from previous years. The test is completed over both the exact and hierarchical metrics in order to showcase the behavioral differences between the two metrics. Each classifier uses it's optimal $K$ and $\rho$ parameters with respect to a fixed $L=20$.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{figures/historical_exact.png}
+    \caption{Pseudo-historical comparison utilizing MRR and MAR20, testing on year $i$ and training on years $j<i$.}\label{fig:historical_exact}
+\end{figure}
+
+The exact metrics generally improve as the number of available annotations grows, with MRR growing from 0.30 in 2006 to 0.452 in 2026 for the TF-IDF method. The BERT method also follows a similar trajectory, rising from 0.280 in 2006 to 0.55 in 2026. This supports the claim that as the quantity of comparison points increases, the ability of the classifier to predict exactly also increases.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.75\linewidth]{figures/historical_hierarchical.png}
+    \caption{Pseudo-historical comparison utilizing HP and HR20, testing on year $i$ and training on years $j<i$.}\label{fig:historical_hier}
+\end{figure}
+
+On the other hand, the hierarchical metrics don't seem to be affected by the quantity of annotations available to the classifier. For the TF-IDF method, HF grew from 0.262 in 2006 to 0.312 in 2025, then experiencing a dip in to 0.236 in 2026. The BERT method fares similarly, albeit with higher baseline scores; its HF grew from 0.385 in 2006 to 0.436 in 2025, and also exhibited a drop in 2026 to 0.367. The characteristics described by Verspool et al.\ \cite{verspoor/2006/categorization} and mentioned in Section~\ref{sec:methods-metrics-hierarchical} imply that both methods are typically overly specific, predicting descendants of the expected term. The relatively minimal slope of both trends suggests that the classifier was able to correctly predict the lineage of a term, which is reflected positively in the hierarchical metrics, even with minimal comparison points.
+
+\subsection{Interpretation}\label{sec:analysis-interpretation}
 
 \section{Self Assessment}\label{sec:assessment}
 
