@@ -1,6 +1,6 @@
 \documentclass[11pt]{article}
 \input{style/bigdata.txt}
-\usepackage{amsmath,amsfonts,amssymb,amsthm,latexsym,graphicx,array,multicol,float}
+\usepackage{amsmath,amsfonts,amssymb,amsthm,latexsym,graphicx,array,multicol,float,url}
 
 % chktex-file 8
 % chktex-file 44
@@ -268,13 +268,11 @@ This section describes the acquisition and cleaning of the data used to build an
 
 \subsection{Data Sources}\label{sec:methods-source}
 
-% TODO: Need to cite properties of go-basic.json found on the website.
-
-This project relies upon three sources of data, each of which accommodates a distinct function. The GO is obtained through the basic release from the GOC~\cite{consortium/2025/gene},  which filters relations to maintain the acyclic property. The basic variant also contains no cross-aspect relations, allowing safe propagation up the hierarchy. Annotations are obtained from the latest GOA~\cite{huntley/2014/database, barrell/2009/database} UniProt archive release which includes the complete cross-species annotation set. The annotation archive provides reference identifiers used to support the existence of an annotation, which are used to acquire article abstracts available through PubMed~\cite{sayers/2024/database}.
+This project relies upon three sources of data, each of which accommodates a distinct function. The GO is obtained through the basic release from the GOC~\cite{consortium/2025/gene},  which filters relations to maintain the acyclic property. The basic variant also contains no cross-aspect relations, allowing safe propagation up the hierarchy~\cite{go/2026/download}. Annotations are obtained from the latest GOA~\cite{huntley/2014/database, barrell/2009/database} UniProt archive release which includes the complete cross-species annotation set. The annotation archive provides reference identifiers used to support the existence of an annotation, which are used to acquire article abstracts available through PubMed~\cite{sayers/2024/database}.
 
 \subsection{Database Construction}\label{sec:methods-database}
 
-All data storage is handled by an SQLite database stored locally on disk. The data populated in four distinct stages, three of which are independent of one another. The \verb|terms| and \verb|relations| tables are assembled from the ontology basic release and the \verb|annotations| table from the annotation archive. Once the \verb|annotations| table is constructed, the distinct PubMed identifiers (PMID) within it are used to query the NCBI E-Utilities~\cite{sayers/2024/database} service for publication abstracts, populating the  \verb|citations| table.
+All data storage is handled by an SQLite database~\cite{gaffney/2022/sqlite} stored locally on disk. The data populated in four distinct stages, three of which are independent of one another. The \verb|terms| and \verb|relations| tables are assembled from the ontology basic release and the \verb|annotations| table from the annotation archive. Once the \verb|annotations| table is constructed, the distinct PubMed identifiers (PMID) within it are used to query the NCBI E-Utilities~\cite{sayers/2024/database} service for publication abstracts, populating the  \verb|citations| table.
 
 \subsubsection{Ontology}\label{sec:methods-database-ontology}
 
@@ -286,7 +284,7 @@ The annotation archive is of a tab-delimited format and read line-by-line, extra
 
 \subsubsection{Citations}\label{sec:methods-database-citations}
 
-The distinct PMIDs appearing in the \verb|annotations| table are resolved to an article's abstract through the \verb|e-fetch| endpoint of the E-utilities service. Requests are batched and limited to the rate published in the documentation; ten requests per second with a provided API key, and three otherwise. Batches will retry up to three times before raising an exception,  under the assumption that something went wrong in transit as opposed to a configuration error.  Due to the long running nature of this process, batches will only contain PMIDs which are not already populated in the \verb|citations| table, allowing a safe restart if the process fails.
+The distinct PMIDs appearing in the \verb|annotations| table are resolved to an article's abstract through the \verb|e-fetch| endpoint of the E-utilities service. Requests are batched and limited to the rate published in the documentation; ten requests per second with a provided API key, and three otherwise~\cite{ncbi/2026/eutilities}. Batches will retry up to three times before raising an exception,  under the assumption that something went wrong in transit as opposed to a configuration error.  Due to the long running nature of this process, batches will only contain PMIDs which are not already populated in the \verb|citations| table, allowing a safe restart if the process fails.
 
 The batch response is contained in an XML document, which is used to extract the raw text abstract and map it to it's associated identifier. In the case that the abstract has additional formatting or is structured in multiple elements, the text is concatenated to construct a single uniform text block, while empty abstracts are ignored.
 
@@ -343,39 +341,36 @@ The second difference is that the Porter stemming algorithm~\cite{porter/1980/al
     \[\textit{rpd3s complex} \xrightarrow {split} (\textnormal{rpd3s}, \textnormal{complex}) \xrightarrow {stem}  (\textnormal{rpd3}, \textnormal{complex})\]
     \caption{An invalid stemming of a biomedical process.}\label{fig:invalid-stem}
 \end{figure}
-% TODO: cite the sklearn tfidfvectorizer class
 
-This program utilizes the SKLearn \verb|TfidfVectorizer| class~\cite{}, which provides the vectorization functionality described in Section~\ref{sec:background-lexical} using a two step process: pre-computation of the corpus vocabulary and IDF vector using the \verb|fit| method, followed by the actual vectorization of the corpus using the \verb|transform| method. It accepts the tokenization strategy as a constructor parameter, removing the need for a discrete tokenization stage. The IDF vector calculation differs from that of Equation~\ref{eq:idf} in that it accounts for the presence of zero division. The modified version is presented in Equation~\ref{eq:sk-idf}~\cite{}.
+Both the Porter stemming implementation and the stop-word list are provided by the NLTK library~\cite{loper/2009/natural}. The preprocessing pipeline is utilized symmetrically across vectorization points within the program, meaning training and testing inputs are tokenized identically. Due to the large number of repeated stemming inputs, the function is memoized using the \verb|@functools.cache| decorator.
+
+This program utilizes the SKLearn \verb|TfidfVectorizer| class~\cite{sklearn/2026/tfidfvectorizer}, which provides the vectorization functionality described in Section~\ref{sec:background-lexical} using a two step process: pre-computation of the corpus vocabulary and IDF vector using the \verb|fit| method, followed by the actual vectorization of the corpus using the \verb|transform| method. It accepts the tokenization strategy as a constructor parameter, removing the need for a discrete tokenization stage. The IDF vector calculation differs from that of Equation~\ref{eq:idf} in that it accounts for the presence of zero division. The modified version is presented in Equation~\ref{eq:sk-idf}~\cite{sklearn/2026/tfidfvectorizer}.
 
 \begin{equation}\label{eq:sk-idf}
     \operatorname{idf_{t, D}} = \log {\frac{|D| + 1}{\operatorname{df}_{t, D} + 1}} + 1
 \end{equation}
 
-Once the vocabulary and IDF vector have been computed, the corpus of raw text documents can be vectorized, in the process referred to as indexing, by passing the sequence of documents to the \verb|transform| method. This returns a sparse matrix which has a row for each document in the corpus, and a column for each term in the corpus vocabulary, and represents the lexical index of the corpus.
+Once the vocabulary and IDF vector have been computed, the corpus of raw text documents can be vectorized, in the process referred to as indexing, by passing the sequence of documents to the \verb|transform| method. This returns a sparse matrix, provided by the SciPy library~\cite{virtanen/2020/scipy} which has a row for each document in the corpus, and a column for each term in the corpus vocabulary, and represents the lexical index of the corpus.
 
-The vocabulary and IDF vector are persisted in the \verb|vocabulary| table, and the lexical index is persisted in the \verb|vectorizations| table. Importantly, the sparse matrix is never materialized when it's loaded from the table, meaning memory usage and transfer overhead is minimized.
+The vocabulary and IDF vector are persisted in the \verb|vocabulary| table, and the lexical index is persisted in the \verb|vectorizations| table represented as a COO sparse array~\cite{scipy/2026/cooarray}. Importantly, the sparse matrix is never materialized when it's loaded from the table, meaning memory usage and transfer overhead is minimized.
 
 \subsubsection{Contextual Indexing}\label{sec:methods-indexing-contextual}
 
-% TODO: cite the transformer interface from sklearn
-
-The contextual indexing is handled by a custom transformer as opposed to the built in \verb|TfidfVectorizer| described in Section~\ref{sec:methods-indexing-lexical}. This is a custom class which implements the \verb|fit|, \verb|transform| and \verb|fit_transform| methods in order to integrate into an SKLearn workflow~\cite{}. This allows for significant simplification of the testing procedure described later in Section~\ref{sec:analysis}.
+The contextual indexing is handled by a custom transformer as opposed to the built in \verb|TfidfVectorizer| described in Section~\ref{sec:methods-indexing-lexical}. This is a custom class which implements the \verb|fit|, \verb|transform| and \verb|fit_transform| methods in order to integrate into an SKLearn workflow~\cite{sklearn/2026/estimators}. This allows for significant simplification of the testing procedure described later in Section~\ref{sec:analysis}.
 
 Utilizing the Transformers library from Wolf et al.\ \cite{wolf/2020/transformers}, the BiomedBERT model is automatically initialized with the correct configuration upon calling the \verb|fit| method of the \verb|BertEmbeddingsVectorizer|. No actual fitting to the corpus is done however, since the output embeddings of the model are entirely independent of the corpus, as described in Section~\ref{sec:background-contextual-embeddings}.
 
-% TODO: need citation for pytorch
-
 Document vectorization using the \verb|transform| method is performed in batches. Each document in the batch is decomposed into token sequences by the WordPiece algorithm described in Section~\ref{sec:background-contextual-embeddings}, and truncated to the maximum token sequence length tolerated by the model. In the case of the BERT architecture, this is 512 tokens~\cite{sun/2019/finetune}. The accompanying attention mask is also constructed during the tokenization step.
 
-The library used for inference is PyTorch~\cite{}, which utilizes the \verb|Tensor| class to represent the input embeddings passed to the model. PyTorch defines a tensor as `a multi-dimensional matrix containing elements of a single data type'~\cite{} and expects multi-dimensional tensors to be rectangular. As such, any token sequence shorter than the longest token sequence across the batch is padded using the padding token to ensure this rectangular shape.
+The library used for inference is PyTorch~\cite{ansel/2024/pytorch}, which utilizes the \verb|Tensor| class to represent the input embeddings passed to the model. PyTorch defines a tensor as `a multi-dimensional matrix containing elements of a single data type'~\cite{pytorch/2026/tensor} and expects multi-dimensional tensors to be rectangular. As such, any token sequence shorter than the longest token sequence across the batch is padded using the padding token to ensure this rectangular shape.
 
 Output embeddings are then mean-pooled using the strategy from Section~\ref{sec:background-contextual-pooling} with respect to the attention mask. Utilizing the attention mask is vital in this step, as padding tokens are also processed by the model, but do not represent any actual context within the input sequence. The pooled result is representative of a singular document vectorization, and once the full corpus has been batch-inferred, the contextual indexing process is complete. Importantly, the mean centering strategy described in Section~\ref{sec:background-contextual-anisotropy}  and developed by Stollenwerk et al.\ \cite{stollenwerk/2026/output} is not applied in this step, as it must be evaluated across the full contextual index, as opposed to the batched result of this method.
 
-Contextual vectorizations emitted by \verb|BertEmbeddingsTokenizer| are stored as a serialized array. Each embedding, a vector in $\mathbb{R}^{768}$, is serialized using the Pickle utility and stored as byte blob. As such, no reconstruction of the vector is necessary upon initialization, simply de-serialization.
+Contextual vectorizations emitted by \verb|BertEmbeddingsTokenizer| are stored as a serialized array. Each embedding, a vector in $\mathbb{R}^{768}$, is serialized using the Pickle utility~\cite{python/2026/pickle} and stored as byte blob~\cite{sqlite/2026/datatypes}. As such, no reconstruction of the vector is necessary upon initialization, simply de-serialization.
 
 \subsection{Classification and Scoring}\label{sec:methods-scoring}
 
-The main classification mechanism of the program utilizes a brute-force KNN algorithm provided by SKLearn's \verb|NearestNeighbors| estimator to calculate the cosine distance between a vectorized document $x_{test}$ to each document vectorization in the index $X_D$ of the corpus. This index is acquired by either of the two indexing methods described in Section~\ref{sec:methods-indexing}, as the \verb|NearestNeighbors| estimator accepts both dense and sparse input.
+The main classification mechanism of the program utilizes a brute-force KNN algorithm provided by SKLearn's \verb|NearestNeighbors| estimator to calculate the cosine distance between a vectorized document $x_{test}$ to each document vectorization in the index $X_D$ of the corpus. This index is acquired by either of the two indexing methods described in Section~\ref{sec:methods-indexing}, as the \verb|NearestNeighbors| estimator accepts both dense and sparse input~\cite{sklearn/2026/nearestneighbors}.
 
 \subsubsection{Document Scoring}\label{methods-scoring-document}
 
@@ -415,7 +410,7 @@ The amplification parameter directly influences the scoring mechanism by increas
 \begin{figure}
     \centering
     \includegraphics[width=0.5\linewidth]{figures/score_with_rho.png}
-    \caption{Similarity amplification at $\rho \in \{1,3,5\}$.}\label{fig:placeholder}
+    \caption{Similarity amplification at $\rho \in \{1,3,5\}$.}\label{fig:rho-vis}
 \end{figure}
 
 While the truncation parameter $L$ does influence the output, and is evaluated alongside the hyperparameters in Section~\ref{sec:analsysis-tuning}, it is not a true hyperparameter as it does not change the scoring in any way. The highest scoring term will be the same regardless of $L=1$ or $L=200$. Gobiell et al.\ used this parameter as a way to measure GOCat's effectiveness in different scenarios. They state for a process `where a user has to screen the output list to select correct and ignore incorrect predictions' that `screening 20 terms is a realistic scenario'~\cite{gobeill/2013/managing}.
@@ -446,7 +441,7 @@ The mean reciprocal rank (MRR), defined in equation~\ref{eq:mrr}, measures the m
     \end{equation}
 \end{multicols}
 
-The macro-average recall (MAR), defined in equation~\ref{eq:mar}, measures the per-term proportion of the case that a term was both annotated to a document and predicted to be so. Let $Y_{test} = \bigcup_{d \in D_{test}} T_d$ be the set of all true terms annotated to documents in the test set. Then for each term, define $F_t = \bigcup_{d \in D_{test}} \{d : t \in T_d\}$ and $G_t = \bigcup_{d \in D_{test}} \{d : t \in \hat{T}_d\}$ to be the sets of documents that contain the term $t$ appearing in the true and predicted sets respectively. % TODO: need a non-website citation for this.
+The macro-average recall (MAR), defined in equation~\ref{eq:mar}~\cite{sokolova/2009/systematic}, measures the per-term proportion of the case that a term was both annotated to a document and predicted to be so. Let $Y_{test} = \bigcup_{d \in D_{test}} T_d$ be the set of all true terms annotated to documents in the test set. Then for each term, define $F_t = \bigcup_{d \in D_{test}} \{d : t \in T_d\}$ and $G_t = \bigcup_{d \in D_{test}} \{d : t \in \hat{T}_d\}$ to be the sets of documents that contain the term $t$ appearing in the true and predicted sets respectively.
 
 \begin{equation}
     \operatorname{MAR} = \frac{1}{|Y_{test}|} \sum_{d \in D_{test}} \frac{|F_t \cap G_t|}{|F_t|}
