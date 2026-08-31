@@ -229,7 +229,7 @@ First described by Gao et al.~\cite{gao/2019/representation}, the problem of ani
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/embedding_d1_d2.png}
+    \includegraphics[width=0.5\linewidth]{figures/embedding_d1_d2.png}
     \caption{First two dimensions of document vectorizations produced with BERT vectorization method.}\label{fig:contextual-dim1-vs-dim2}
 \end{figure}
 
@@ -237,7 +237,7 @@ There is a noticeable shift away from the origin in the first two dimensions, su
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/embeddings_d1_d2_scaled.png}
+    \includegraphics[width=0.5\linewidth]{figures/embeddings_d1_d2_scaled.png}
     \caption{The first two dimensions of document vectorizations after applying mean centering.}\label{fig:contextual-dim1-vs-dim2-scaled}
 \end{figure}
 
@@ -265,9 +265,41 @@ The cosine similarity, defined in Equation~\ref{eq:cosine-similarity}~\cite{you/
 
 \section{Software Development}\label{sec:development}
 
+This section covers the engineering details that went into creating this project. It will cover the development strategies that were used as well as the requirements of the project and how they influenced the design decisions. The repository used during development to store all deliverables for this project is available on \href{https://gitlab.com/dsyomichev/rhul-diss/}{GitLab}.
+
+\subsection{Methodology}\label{sec:development-methodology}
+
+While no named methodology was in place during the development of this project, a number of strategies were utilized in order to ensure the project met the final deliverables outlined in the project spec. The project was designed with modularity in mind, allowing components to be reused across different parts of the project. An attempt was made to minimize the quantity of code needing to be written, and instead utilize as many existing libraries as possible, notably Scikit-Learn (SKLearn)~\cite{pedregosa/2011/scikit-learn} and Tranformers~\cite{wolf/2020/transformers}. Development was completed in stages, each of which is described in the following sections.
+
+\subsection{Requirements Analysis}\label{sec:development-analysis}
+
+In order to begin implementing the project, it was first necessary to fully grasp the scope and requirements of the project. This began with background research into the Gene Ontology, the Gene Ontology Annotations, and the GOCat project, which were the essential backbone of this project. Additionally, cursory research was conducted into potential extensions of this project, leading to the hypothesis that contextual embeddings could perform better than the lexical indexing performed by Terrier platform~\cite{ounis/2006/terrier} in GOCat~\cite{gobeill/2013/managing}. This research was then connected to the required deliverables for the project, and was culminated in the early deliverable report detailing the planned timeline, a summary of the research, and further topics which would need to be explored.
+
+\subsection{Design Decisions}\label{sec:development-design}
+
+Specific design decisions needed to be made in accordance with the plan constructed in the previous stage. At this point, several key decisions were made. Python was chosen as the primary language for the project, due to the abundance of machine learning libraries available. It was then determined that SQLite~\cite{sqlite/2026/datatypes} would be the primary data store for the project. SQLite was chosen for it's simple interface, serverless design and fully featured SQL capabilities. Additionally, Python provides a built-in SQLite client by default~\cite{python/2026/sqlite3}. Finally, the primary vectorization methods were determined, those being the TF-IDF process described in Section~\ref{sec:background-lexical} and the BERT process using BiomedBERT described in~\ref{sec:background-contextual}. The reasoning behind these decisions is explained in detail within those sections.
+
+Small scale development then began in order to fully grasp the two vectorization processes, and how they could be implemented properly in the finalized version of the project. This included implementing each individual step of the TF-IDF process in accordance with the formulations from~\ref{sec:background-lexical-weighting}. At this point, each step of the process was contained in a separate script which created a database table to store it's particular result. The BERT vectorization method was tested by downloading the model and learning how to actually infer embeddings from the it.
+
+\subsection{Implementation}\label{sec:development-implementation}
+
+The exploratory developments described in the previous section led to valuable insight into how the final version of this project would be structures. It quickly became apparent that computing each result in the TF-IDF process would lead to difficulties validating and tuning at later stages of the project. From this, it was decided to use the \verb|TfidfVectorizer|~\cite{sklearn/2026/tfidfvectorizer} class from SKLearn~\cite{pedregosa/2011/scikit-learn}, and ultimately resulting in the full integration of the project into the SKLearn workflow.
+
+Utilizing the custom Estimator~\cite{sklearn/2026/estimators} and Transformer~\cite{sklearn/2026/transformer} interfaces from SKLearn ultimately allowed for deep integration into an existing ecosystem of machine learning utilities, significantly streamlining future development and reducing the overhead of implementing more complex features.
+
+A few decisions were made and reverted in this stage, including using masked arrays~\cite{numpy/2026/masked} from the NumPy~\cite{harris/2020/array} library to represent the two dimensional set of true GO terms for a set of documents. This allowed the fully featured array indexing provided by NumPy without needing to satisfy the requirement that arrays be rectangular~\cite{numpy/2026/beginner}, a property which could not be satisfied due to the arbitrary quantity of GO terms which could be annotated to a document. Ultimately, this was scrapped due to the complexity necessary to convert to and from masked arrays, and replaced with native Python lists.
+
+At the end of this stage, there was a functional but untested version of the project ready. It was capable on building the database, indexing a corpus and then providing a prediction, but it was still unclear how valid of a prediction this was.
+
+\subsection{Testing and Analysis}\label{sec:development-testing}
+
+This stage involved implementing the analysis and uncovered a large number of flaws with the project as a result. The most notable of these was the observation of the anisotropic phenomenon described in Section~\ref{sec:background-contextual-anisotropy}, which was uncovered because the BERT vectorizer was not responding to a hyperparameter which will be explained in detail in Section~\ref{sec:methods-scoring-document}. It became evident that all the distances resulting from executing the KNN algorithm on BERT vectorizations were all within a minuscule range and very close to zero. This was partially alleviated through the mean centering technique described by Stollenwerk et al.\ \cite{stollenwerk/2026/output} but represents a flaw which originates from the very start of the project, where BiomedBERT~\cite{gu/2021/domainspecific} was chosen as the model to evaluate.
+
+It was in stage it became apparent just how expensive the various computations occurring throughout the pipeline were, requiring impractical amounts of time to perform analysis, and led to the implementation of memoization techniques, involving caching the result of expensive function calls, at various points throughout the project. This was used when computing the exhaustive hyperparameter search described in Section~\ref{sec:analsysis-tuning} across a set of potential neighbor counts for the KNN algorithm. Because the first $k$ neighbors of the result do not change whether the algorithm is asked to evaluate the first $k$ neighbors or the first $k+1$ neighbors, it can simply calculate a large number of neighbors and then truncate the result to the desired length. This was used to significantly decrease the time it took for the exhaustive search to run, allowing for more a less expensive re-run when a new flaw in the project was ultimately found.
+
 \section{Methods}\label{sec:methods}
 
-This section describes the acquisition and cleaning of the data used to build and evaluate the program, as well as the specific design choices taken during the the implementation stage of this project.
+This section describes the acquisition and cleaning of the data used to build and evaluate the program, as well as the specific algorithms and functions used to actually provide the functionality of the program.
 
 \subsection{Data Sources}\label{sec:methods-source}
 
@@ -375,7 +407,7 @@ Contextual vectorizations emitted by \verb|BertEmbeddingsTokenizer| are stored a
 
 \subsection{Classification and Scoring}\label{sec:methods-scoring}
 
-The main classification mechanism of the program utilizes a brute-force KNN algorithm provided by SKLearn's \verb|NearestNeighbors| estimator to calculate the cosine distance between a vectorized document $x_{test}$ to each document vectorization in the index $X_D$ of the corpus. This index is acquired by either of the two indexing methods described in Section~\ref{sec:methods-indexing}, as the \verb|NearestNeighbors| estimator accepts both dense and sparse input~\cite{sklearn/2026/nearestneighbors}.
+The main classification mechanism of the program utilizes a brute-force KNN algorithm provided by SKLearn's \verb|NearestNeighbors| estimator to calculate the cosine distance between a vectorized document $x_{test}$ to each document vectorization in the index $X_D$ of the corpus. This index is acquired by either of the two indexing methods described in Section~\ref{sec:methods-indexing}, as the \verb|NearestNeighbors| estimator accepts both dense and sparse input~\cite{sklearn/2026/nearestneighbors}. The overall design of the classifier was adopted from Gobiell et al.\ and their work on GOCat~\cite{gobeill/2013/managing}.
 
 \subsubsection{Document Scoring}\label{sec:methods-scoring-document}
 
@@ -385,7 +417,7 @@ Let $k \in [1, K]$ such that algorithm determines at most $K$ neighbors. The res
     \hat{s}_k = {(1-s_k)}^\rho \in [-1, 1]
 \end{equation}
 
-Let $\rho$ be some odd integer such that $\rho \in \{1,3,5,\dots\}$ in order to define the transformation of a distance $s_k$ into an amplified similarity $\hat{s}_k$, described in Equation~\ref{eq:amp-sim}. This process reverts the distance back to a similarity, and then takes it to an exponent $\rho$; a method proposed by Breese et al.\ in order to emphasizes closer matches while punishing further matches~\cite{bresse/1998/emprirical}. In order to prevent sign degeneration, $\rho$ must be an odd integer.
+Let $\rho$ be some odd integer such that $\rho \in \{1,3,5,\dots\}$ in order to define the transformation of a distance $s_k$ into an amplified similarity $\hat{s}_k$, described in Equation~\ref{eq:amp-sim}. This process reverts the distance back to a similarity, and then takes it to an exponent $\rho$; a method proposed by Breese et al.\ in order to emphasizes closer matches while punishing further matches~\cite{bresse/1998/emprirical}. In order to prevent sign degeneration, $\rho$ must be an odd integer. This is the main deviation from the classifier implemented in GOCat, which did not transform the distances before the aggregation step in any way~\cite{gobeill/2013/managing}.
 
 \subsubsection{The Prediction Sequence}\label{sec:methods-scoring-sequence}
 
@@ -397,7 +429,7 @@ Let $\rho$ be some odd integer such that $\rho \in \{1,3,5,\dots\}$ in order to 
 Let $T_k$ be the set of GO terms annotated to a document $d_k$ with vectorization $x_k$. Then for some GO term $t$, it's score is defined by Equation~\ref{eq:pred-score}; the aggregate of similarities $\hat{s}_k$ for all documents $d_k$ for which $t$ is annotated to. Let $Y_K= \bigcup_{k=1}^K T_k$ be the set of all GO terms which have been annotated to a document appearing in the neighbor sequence, and define $q=|Y_K|$ to be the total number of terms in this set. The predicted sequence $\hat{T}$ is the sequence of terms sorted on the term's score, defined in Equation~\ref{eq:pred-sequence}.
 
 \begin{equation}\label{eq:pred-sequence}
-    \hat{T} = (t_1, \dots, t_q) \textnormal{ with } \operatorname{Score}(t_i) \leq \operatorname{Score}(t_{i+1})
+    \hat{T} = (t_1, \dots, t_q) \textnormal{ with } \operatorname{Score}(t_i) \geq \operatorname{Score}(t_{i+1})
 \end{equation}
 
 To give a practical example, suppose $K=2$ such that $(\hat{s}_1, \hat{s}_2) = (0.5, 0.25)$ and $(T_1, T_2) = (\{t_1, t_2\},\{t_2, t_3\})$,  such that $Y_K = \{t_1, t_2, t_3\}$ with $q=3$. Then $\operatorname{Score}(t_1) = 0.5$, $\operatorname{Score}(t_2) = 0.75$, and $\operatorname{Score}(t_3) = 0.25$, resulting in the prediction sequence $\hat{T} = (t_2, t_1, t_3)$.
@@ -678,7 +710,7 @@ A basic command line interface is included in the project in order to build the 
 
 This command parses source files and constructs the tables to store the information within them. Each of the four arguments corresponds to a specific table, and certain tables are dependent on each other. Running the command with the argument omitted will build all four tables sequentially, in the correct order.
 
-\begin{table}[h]
+\begin{table}[H]
     \centering
     \begin{tabular}{|l|l|l|}
         \hline
@@ -761,11 +793,9 @@ Both place results in the \verb|data/cache| directory, and the latter also print
 
 \subsection{Data Usage}
 
-The contents of the database are partially aquired and derived from the NCBI E-Utilities service and as such, the disclaimer and copyright notice available at this \href{https://www.ncbi.nlm.nih.gov/About/disclaimer.html}{link} applies. The US Library of Medicine does not claim copyright over the abstracts available from PubMed, but journal publishers or authors can. Gene Ontology data from the 2026-06-15 release (DOI:10.5281) is made available under the terms of the CC BY 4.0 license. Gene Ontology Annotations Uniprot archive from the 2026-06-17 release is made available under the terms of the CC BY 4.0 license. This project makes no attempt to distribute the database, and does not recommend users of this project to do so.
+The contents of the database are partially acquired and derived from the NCBI E-Utilities service and as such, the disclaimer and copyright notice available at this \href{https://www.ncbi.nlm.nih.gov/About/disclaimer.html}{link} applies. The US Library of Medicine does not claim copyright over the abstracts available from PubMed, but journal publishers or authors can. Gene Ontology data from the 2026-06-15 release (DOI:10.5281) is made available under the terms of the CC BY 4.0 license. Gene Ontology Annotations Uniprot archive from the 2026-06-17 release is made available under the terms of the CC BY 4.0 license. This project makes no attempt to distribute the database, and does not recommend users of this project to do so.
 
 \bibliographystyle{plain}
 \bibliography{bibliography}
-
-\section{Appendix}\label{sec:appendix}
 
 \end{document}
