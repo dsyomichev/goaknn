@@ -30,6 +30,9 @@
 \declaration{}
 
 \begin{abstract}
+    The Gene Ontology (GO) represents a standardized vocabulary of terms which can be related to specific gene products through evidence based statements called annotations \cite{go/2026/introduction}, and by inspecting the subset of annotations made using publication-based evidence it becomes possible to associate these publications to specific GO terms. The quantity of published biomedical text continues to increase year by year, while manual curation of annotations remains a time-consuming task. Electronic annotation represents an avenue to keep up with the increased quantity of literature and provide high-quality annotations across a wide variety of species \cite{huntley/2014/database}. Because biomedical publications rarely utilize GO terms verbatim, a matching approach is invariably ineffective as demonstrated by Gobiell et al. \cite{gobeill/2013/managing}. This project is an extended re-implementation of the GOCat tool created by Gobiell et al. \cite{gobeill/2013/managing}, which used a $K$-nearest neighbors (KNN) approach to automatically assign applicable GO terms to unannotated publications. GOCat is now unavailable, and the methodology used to design the tool no longer represents the modern state of the machine learning domain. This project provides a comparison between the lexical indexing approach used by GOCat to a contextual indexing method utilizing the BiomedBERT \cite{gu/2021/domainspecific} language model. Both methods are evaluated against a corpus of 202,638 documents with the metrics utilized by Gobiell et al. to measure GOCat, as well as the set of hierarchical metrics proposed by Verspoor et al. \cite{verspoor/2006/categorization}.
+
+    % TODO: go over results, and provide interpretations
 \end{abstract}
 
 \section{Introduction}\label{sec:introduction}
@@ -313,7 +316,7 @@ The batch response is contained in an XML document, which is used to extract the
     \caption{Metadata related to quantities of data used during experimentation. }\label{tab:metadata}
 \end{table}
 
-In addition to Table~\ref{tab:metadata}, article abstracts in the corpus span the publication date range of 1959 to 2026, while annotations span the range 1999 to 2026. Out of the 202,638 documents in the corpus, there are three duplicates; each contains the text \textit{[Figure: see text].} and hold valid associations to annotations.
+In addition to Table~\ref{tab:metadata}, article abstracts in the corpus span the publication date range of 1959 to 2026, while annotations span the range 1999 to 2026. Out of the 202,638 documents in the corpus, there are three duplicates; each contains the text \textit{[Figure: see text].}\ and hold valid associations to annotations.
 
 Several properties of the data should also be noted. First, of 48,239 GO terms, only 28,185 are referenced by annotations. Due to the nature of the KNN algorithm, only 58\% of the potential label space is ever visible, meaning over 40\% of GO terms will never be predicted regardless of how well they match the input document. Second, the label space is incredibly imbalanced as seen in Figure~\ref{fig:annotation_terms}. Only a small handful of terms are associated with a large majority of annotations, and thus can be expected to be predicted much more frequently.
 
@@ -610,6 +613,12 @@ The exact metrics generally improve as the number of available annotations grows
 On the other hand, the hierarchical metrics don't seem to be affected by the quantity of annotations available to the classifier. For the TF-IDF method, HF grew from 0.262 in 2006 to 0.312 in 2025, then experiencing a dip in to 0.236 in 2026. The BERT method fares similarly, albeit with higher baseline scores; its HF grew from 0.385 in 2006 to 0.436 in 2025, and also exhibited a drop in 2026 to 0.367. The characteristics described by Verspool et al.\ \cite{verspoor/2006/categorization} and mentioned in Section~\ref{sec:methods-metrics-hierarchical} imply that both methods are typically overly specific, predicting descendants of the expected term. The relatively minimal slope of both trends suggests that the classifier was able to correctly predict the lineage of a term, which is reflected positively in the hierarchical metrics, even with minimal comparison points.
 
 \subsection{Interpretation}\label{sec:analysis-interpretation}
+
+% TODO: Write these thoughts out formally:
+% - Unexpectedly, BERT model didn't perform as well as tfidf in the exact metrics, was context not captured, or is BERT a bad choice for this task.
+% - Perhaps sentence bert would be a better fit, designed with embeddings in mind, it could perform better on the contextualization.
+% - Did the scoring function properly select the best matches, ie. is the problem in the vectorization or the scoring function.
+% -
 
 \section{Self Assessment}\label{sec:assessment}
 
