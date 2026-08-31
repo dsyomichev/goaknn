@@ -35,6 +35,8 @@ N_SPLITS = 10
 
 RANDOM_STATE = 0
 
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def init_hierarchical_score(relations):
 

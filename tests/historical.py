@@ -42,6 +42,8 @@ BEST_PARAMS = {
     "tfidf": {"n_neighbors": 200, "e_amplification": 3},
 }
 
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def init_hierarchical_score(relations):
 
