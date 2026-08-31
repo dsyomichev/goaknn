@@ -3,6 +3,7 @@ import json
 
 from pathlib import Path
 from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import StandardScaler
 
 CACHE_DIR = Path(__file__, "../../../data/cache").resolve()
 
@@ -76,7 +77,6 @@ def compare(method):
     return result
 
 
-"""
 result = compare("tfidf")
 
 with open(CACHE_DIR.joinpath("best_param_score_combos_tfidf.json"), "w") as file:
@@ -86,7 +86,6 @@ result = compare("bert")
 
 with open(CACHE_DIR.joinpath("best_param_score_combos_bert.json"), "w") as file:
     json.dump(result, file, indent=4)
-"""
 
 
 def separation(connection):
@@ -95,9 +94,11 @@ def separation(connection):
     vectorizations, _ = client.get_vectorizations()
     embeddings, _ = client.get_embeddings()
 
-    vectors = embeddings
+    scaler = StandardScaler(with_std=False)
 
-    knn = NearestNeighbors(n_neighbors=2, metric="cosine", n_jobs=-1)
+    vectors = scaler.fit_transform(embeddings)
+
+    knn = NearestNeighbors(n_neighbors=26, metric="cosine", n_jobs=-1)
 
     knn.fit(vectors)
 
@@ -105,14 +106,17 @@ def separation(connection):
 
     print(all_distances)
 
-    aggregate = []
+    aggregate_1 = []
+    aggregate_25 = []
 
     for distances in all_distances:
-        distance = distances[1]
+        distance_1 = distances[1]
+        distance_25 = distances[25]
 
-        aggregate.append(distance)
+        aggregate_1.append(distance_1)
+        aggregate_25.append(distance_25)
 
-    print(numpy.mean(aggregate))
+    print(numpy.mean(aggregate_1), numpy.mean(aggregate_25))
 
 
 execute(separation)

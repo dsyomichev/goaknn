@@ -38,8 +38,14 @@ N_JOBS = -1
 N_LABELS = 20
 
 BEST_PARAMS = {
-    "bert": {"n_neighbors": 50, "e_amplification": 5},
-    "tfidf": {"n_neighbors": 200, "e_amplification": 3},
+    "exact": {
+        "bert": {"n_neighbors": 25, "e_amplification": 5},
+        "tfidf": {"n_neighbors": 100, "e_amplification": 3},
+    },
+    "hierarchical": {
+        "bert": {"n_neighbors": 100, "e_amplification": 5},
+        "tfidf": {"n_neighbors": 200, "e_amplification": 1},
+    },
 }
 
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -154,9 +160,9 @@ def main(connection, method, metric):
 
     classifier = OntologyClassifier(
         n_jobs=N_JOBS,
-        n_neighbors=BEST_PARAMS[method]["n_neighbors"],
+        n_neighbors=BEST_PARAMS[metric][method]["n_neighbors"],
         n_labels=N_LABELS,
-        e_amplification=BEST_PARAMS[method]["e_amplification"],
+        e_amplification=BEST_PARAMS[metric][method]["e_amplification"],
         memory=memory,
         ignore_exact=True,
     )

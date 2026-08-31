@@ -293,8 +293,6 @@ def plt_score_with_rho():
     return figure
 
 
-"""
-
 ## Hyperparameter Comparison
 
 for method in ["tfidf", "bert"]:
@@ -414,8 +412,6 @@ figure.set_size_inches((6, 6))
 output_path = Path.joinpath(CACHE_DIR, f"embeddings_d1_d2_scaled.png")
 
 figure.savefig(output_path, bbox_inches="tight")
-
-"""
 
 figure = plt_score_with_rho()
 

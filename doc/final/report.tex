@@ -30,9 +30,7 @@
 \declaration{}
 
 \begin{abstract}
-    The Gene Ontology (GO) represents a standardized vocabulary of terms which can be related to specific gene products through evidence based statements called annotations~\cite{go/2026/introduction}, and by inspecting the subset of annotations made using publication-based evidence it becomes possible to associate these publications to specific GO terms. The quantity of published biomedical text continues to increase year by year, while manual curation of annotations remains a time-consuming task. Electronic annotation represents an avenue to keep up with the increased quantity of literature and provide high-quality annotations across a wide variety of species~\cite{huntley/2014/database}. Because biomedical publications rarely utilize GO terms verbatim, a matching approach is invariably ineffective as demonstrated by Gobiell et al.\ \cite{gobeill/2013/managing}. This project is an extended re-implementation of the GOCat tool created by Gobiell et al.\ \cite{gobeill/2013/managing}, which used a $K$-nearest neighbors (KNN) approach to automatically assign applicable GO terms to unannotated publications. GOCat is now unavailable, and the methodology used to design the tool no longer represents the modern state of the machine learning domain. This project provides a comparison between the lexical indexing approach used by GOCat to a contextual indexing method utilizing the BiomedBERT~\cite{gu/2021/domainspecific} language model. Both methods are evaluated against a corpus of 202,638 documents with the metrics utilized by Gobiell et al.\ to measure GOCat, as well as the set of hierarchical metrics proposed by Verspoor et al.~\cite{verspoor/2006/categorization}.
-
-    % TODO: go over results, and provide interpretations
+    The Gene Ontology (GO) represents a standardized vocabulary of terms which can be related to specific gene products through evidence based statements called annotations~\cite{go/2026/introduction}, and by inspecting the subset of annotations made using publication-based evidence it becomes possible to associate these publications to specific GO terms. The quantity of published biomedical text continues to increase year by year, while manual curation of annotations remains a time-consuming task. Electronic annotation represents an avenue to keep up with the increased quantity of literature and provide high-quality annotations across a wide variety of species~\cite{huntley/2014/database}. Because biomedical publications rarely utilize GO terms verbatim, a matching approach is invariably ineffective as demonstrated by Gobiell et al.\ \cite{gobeill/2013/managing}. This project is an extended re-implementation of the GOCat tool created by Gobiell et al.\ \cite{gobeill/2013/managing}, which used a $K$-nearest neighbors (KNN) approach to automatically assign applicable GO terms to unannotated publications. GOCat is now unavailable, and the methodology used to design the tool no longer represents the modern state of the machine learning domain. This project provides a comparison between the lexical indexing approach used by GOCat to a contextual indexing method utilizing the BiomedBERT~\cite{gu/2021/domainspecific} language model. Both methods are evaluated against a corpus of 202,638 documents with the metrics utilized by Gobiell et al.\ to measure GOCat, as well as the set of hierarchical metrics proposed by Verspoor et al.~\cite{verspoor/2006/categorization}. Evaluating the classifier over a psuedo-historical analysis revealed that the lexical method outscored the contextual method on both mean reciprocal rank and macro-average recall, while the opposite was observed when evaluating across hierarchical F-score. The lexical method was found predict the expected term more often,
 \end{abstract}
 
 \section{Introduction}\label{sec:introduction}
@@ -57,7 +55,7 @@ Early approaches to electronic annotation of GO terms were thesaurus or dictiona
 
 \subsection{Aims and Motivation}\label{sec:introduction-aims}
 
-The program corresponding to this project is composed of two abstracted primary components. The vectorizer, which encodes raw text documents into a real vector space, and the classifier, which compares a test input to a fully vectorized collection of document in order to assign the most applicable GO terms to it. Importantly, these components are defined by their function rather than implementation, as the goal is to design them in a modular fashion such that it is possible to examine the differences between different implementations. This project utilizes this design philosophy to compare two vectorization methods and evaluate the effectiveness of each.
+The program corresponding to this project is composed of two abstracted primary components. The vectorizer, which encodes raw text documents into a real vector space, and the classifier, which compares a test input to a fully vectorized collection of document in order to assign the most applicable GO terms to it. Importantly, these components are defined by their function rather than implementation, as the goal is to design them in a modular fashion such that it is possible to examine the differences between different implementations. This project utilizes this design philosophy to compare two vectorization methods, the TF-IDF process and language model embeddings, hypothesizing that the language model will be capable of providing better results.
 
 The motivation behind this project is simple, GOCat is no longer officially available. This serves as the primary analytical entry-point, since the quantity of both biomedical text and annotations linking publications to GO terms has substantially increased, and the high availability of pre-trained language models provides an alternative vectorization method to evaluate. The representation of a document is treated as in independent parameter within the experiment, allowing direct comparisons between vectorization methods. In place of the Terrier Platform, this project utilizes a term and inverse document frequency sparse vector representation, and additionally implements a dense representation using contextual embeddings produced by the BiomedBERT model~\cite{gu/2021/domainspecific}.
 
@@ -293,7 +291,7 @@ At the end of this stage, there was a functional but untested version of the pro
 
 \subsection{Testing and Analysis}\label{sec:development-testing}
 
-This stage involved implementing the analysis and uncovered a large number of flaws with the project as a result. The most notable of these was the observation of the anisotropic phenomenon described in Section~\ref{sec:background-contextual-anisotropy}, which was uncovered because the BERT vectorizer was not responding to a hyperparameter which will be explained in detail in Section~\ref{sec:methods-scoring-document}. It became evident that all the distances resulting from executing the KNN algorithm on BERT vectorizations were all within a minuscule range and very close to zero. This was partially alleviated through the mean centering technique described by Stollenwerk et al.\ \cite{stollenwerk/2026/output} but represents a flaw which originates from the very start of the project, where BiomedBERT~\cite{gu/2021/domainspecific} was chosen as the model to evaluate.
+This stage involved implementing the analysis and uncovered a large number of flaws with the project as a result. The most notable of these was the observation of the anisotropic phenomenon described in Section~\ref{sec:background-contextual-anisotropy}, which was uncovered because the BERT vectorizer was not responding to a hyperparameter which will be explained in detail in Section~\ref{sec:methods-scoring-document}. It became evident that all the distances resulting from executing the KNN algorithm on BERT vectorizations were all within a minuscule range and very close to zero. This was partially alleviated through the mean centering technique described by Stollenwerk et al.~\cite{stollenwerk/2026/output} but represents a flaw which originates from the very start of the project, where BiomedBERT~\cite{gu/2021/domainspecific} was chosen as the model to evaluate.
 
 It was in stage it became apparent just how expensive the various computations occurring throughout the pipeline were, requiring impractical amounts of time to perform analysis, and led to the implementation of memoization techniques, involving caching the result of expensive function calls, at various points throughout the project. This was used when computing the exhaustive hyperparameter search described in Section~\ref{sec:analsysis-tuning} across a set of potential neighbor counts for the KNN algorithm. Because the first $k$ neighbors of the result do not change whether the algorithm is asked to evaluate the first $k$ neighbors or the first $k+1$ neighbors, it can simply calculate a large number of neighbors and then truncate the result to the desired length. This was used to significantly decrease the time it took for the exhaustive search to run, allowing for more a less expensive re-run when a new flaw in the project was ultimately found.
 
@@ -564,14 +562,14 @@ As evidenced by table~\ref{tab:both_optimal_sel}, the vectorization methods each
 
 \begin{figure}
     \centering
-    \includegraphics[width=1\linewidth]{figures/hyperparameters_tfidf.png}
+    \includegraphics[width=0.5\linewidth]{figures/hyperparameters_tfidf.png}
     \caption{Hyperparameter trend for TF-IDF vectorization with non-depicted hyperparameters fixed at $L=20$. Triangle represents the best value.}\label{fig:tfidf_hyp_trend}
 \end{figure}
 
 Trends for the $K$ and $\rho$ hyperparameters are shown by Figures~\ref{fig:tfidf_hyp_trend} and~\ref{fig:bert_hyp_trend}. The non-varied parameter is fixed at it's optimal value maximizing HF.\@The increasing value of $K$ improves the TF-IDF vectorizer with diminishing returns as $K \rightarrow 200$, and differs from the behavior of the BERT vectorizer, which peaks at $K=100$. This suggests that the KNN algorithm is more sensitive using the TF-IDF vectorization, returning more valid neighbors in the tail of the result which contribute to the term scoring function described in Section~\ref{sec:methods-scoring-sequence}, while the BERT vectorization returns more unrelated noise, which interferes with the same scoring function.
 \begin{figure}
     \centering
-    \includegraphics[width=1\linewidth]{figures/hyperparameters_bert.png}
+    \includegraphics[width=0.5\linewidth]{figures/hyperparameters_bert.png}
     \caption{Hyperparameter trend for BERT vectorization with non-depicted hyperparameters fixed at $L=20$.}\label{fig:bert_hyp_trend}
 \end{figure}
 
@@ -581,18 +579,20 @@ Amplification also behaves differently between the two, such that the TF-IDF sco
     \centering
     \begin{tabular}{| m{4em} | m{3em} | m{3em} | m{3em} |}
         \hline
-        Method & $k=1$  & $k=25$ & $\Delta$ \\
+        Method               & $k=1$  & $k=25$ & $\Delta$ \\
         \hline
         \hline
-        TF-IDF & 0.4536 & 0.7304 & 0.2768   \\
+        TF-IDF               & 0.4536 & 0.7304 & 0.2768   \\
         \hline
-        BERT   & 0.0036 & 0.0048 & 0.0012   \\
+        BERT                 & 0.0036 & 0.0048 & 0.0012   \\
+        \hline
+        BERT (Mean Centered) & 0.3135 & 0.4253 & 0.1118   \\
         \hline
     \end{tabular}
     \caption{Mean distance to $k$-th nearest neighbor for $k=1$ and $k=25$ across both vectorization methods.}\label{tab:mean_distance_at}
 \end{table}
 
-This result demonstrates the difference between the two methods. Even accounting for the mean-centering performed on the BERT embeddings, the relative distance between the upper end of the nearest neighbors result shows a very small absolute difference between the distances. When considering to the possible range of cosine distance, the TF-IDF scores differ by about 13\%, while the BERT embeddings differ by only 0.6\%. Because scores are not normalized to a static range, as would be the case if using a min-max normalization scheme, the absolute contribution of a neighbor at $k=1$ and $k=25$ is nearly indistinguishable, which is the reason higher amplification improves the result using BERT vectorization. By accentuating more extreme neighbor similarities, and squeezing near-orthogonal neighbors towards zero, the scoring method is able to distinguish the contributions of closer neighbors. This technique is not effective using the TF-IDF method because the scores are much more uniformly distributed, and amplification instead over-compensates the contributions of closer neighbors.
+This result demonstrates the difference between the two methods. Even accounting for the mean-centering performed on the BERT embeddings, the relative distance between the upper end of the nearest neighbors result shows a very small absolute difference between the distances. When considering to the possible range of cosine distance, the TF-IDF scores differ by about 13\%, while the BERT embeddings differ by only 5\% after mean-centering. Because scores are not normalized to a static range, as would be the case if using a min-max normalization scheme, the absolute contribution of a neighbor at $k=1$ and $k=25$ is significantly less distinguishable then the TF-IDF method, which is the reason higher amplification improves the result using BERT vectorization. By accentuating more extreme neighbor similarities, and squeezing near-orthogonal neighbors towards zero, the scoring method is able to distinguish the contributions of closer neighbors. This technique is not effective using the TF-IDF method because the scores are much more uniformly distributed, and amplification instead over-compensates the contributions of closer neighbors.
 
 \subsection{Head-to-Head Comparison}\label{sec:analsysis-comparison}
 
@@ -600,7 +600,7 @@ The values provided by table~\ref{tab:both_optimal_sel} are only a selection ove
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/tfidf_versus_bert_mar.png}
+    \includegraphics[width=0.5\linewidth]{figures/tfidf_versus_bert_mar.png}
     \caption{Head to head comparison of TF-IDF vs. BERT over MAR metric.}\label{fig:method_h2h_mar}
 \end{figure}
 
@@ -608,7 +608,7 @@ As evidenced by figure~\ref{fig:method_h2h_mar}, the TF-IDF vectorizer presents 
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/tfidf_versus_bert_hf.png}
+    \includegraphics[width=0.5\linewidth]{figures/tfidf_versus_bert_hf.png}
     \caption{Head to head comparison of TF-IDF vs. BERT over HF metric.}\label{fig:method_h2h_hf}
 \end{figure}
 
@@ -624,9 +624,9 @@ Mirroring the experiment conducted by Gobiell et al.\ in nature but not in const
     \caption{Train/Test split sizes per-year for the temporal evaluation.}\label{fig:hist_sizes}
 \end{figure}
 
-For each year starting in 1999, a nested mapping is constructed per-year per-document such that it is first keyed on the year of annotation, and then the documents PMID.\@ Importantly, this mapping makes distinct the year the annotation was made, rather than aggregating each document's annotations, and does so with respect to the earliest date available for an annotation, as described in Section~\ref{sec:methods-database-annotations}.  If a document was annotated with year term $t_a$  in year $y_a$, and term $t_b$ in year $y_b > y_a$, then the mapping for the document in year $y_b$ will not contain term $t_a$. The testing set only contains the documents with annotations made in that year, while the training set is the union of all previous years. The size comparison between the train and test sets in each year is provided in table~\ref{fig:hist_sizes}.
+For each year starting in 1999, a nested mapping is constructed per-year per-document such that it is first keyed on the year of annotation, and then the documents identifier. Importantly, this mapping makes distinct the year the annotation was made, rather than aggregating each document's annotations, and does so with respect to the earliest date available for an annotation, as described in Section~\ref{sec:methods-database-annotations}.  If a document was annotated with year term $t_a$  in year $y_a$, and term $t_b$ in year $y_b > y_a$, then the mapping for the document in year $y_b$ will not contain term $t_a$. The testing set only contains the documents with annotations made in that year, while the training set is the union of all previous years. The size comparison between the train and test sets in each year is provided in table~\ref{fig:hist_sizes}.
 
-Because a document can be annotated to multiple terms over multiple years, the testing set includes the document and all of the terms which were annotated to it in previous years alongside the current year. This potentially introduces leakage of the testing set, since a partially complete set of terms for a document could be present in the training set. To mitigate this, exact matches are excluded entirely from the scoring process, and have no bearing on the final metric scores, which effectively asks the classifier to predict all terms for a document without knowledge of it's annotations from previous years. The test is completed over both the exact and hierarchical metrics in order to showcase the behavioral differences between the two metrics. Each classifier uses it's optimal $K$ and $\rho$ parameters with respect to a fixed $L=20$.
+Because a document can be annotated to multiple terms over multiple years, the testing set includes the document and all of the terms which were annotated to it in previous years alongside the current year. This potentially introduces leakage of the testing set, since a partially complete set of terms for a document could be present in the training set. To mitigate this, exact matches are excluded entirely from the scoring process, and have no bearing on the final metric scores, which effectively asks the classifier to predict all terms for a document without knowledge of it's annotations from previous years. The test is completed over both the exact and hierarchical metrics in order to showcase the behavioral differences between the two metrics. Each classifier uses it's optimal $K$ and $\rho$ parameters with respect to MAR in the exact metric test, and HP in the hierarchal metric test. The truncation limit is fixed at $L=20$. The year 2026 should not be treated as representative, as the data was aquired in June 2026, and is included for completeness.
 
 \begin{figure}
     \centering
@@ -634,7 +634,7 @@ Because a document can be annotated to multiple terms over multiple years, the t
     \caption{Pseudo-historical comparison utilizing MRR and MAR20, testing on year $i$ and training on years $j<i$.}\label{fig:historical_exact}
 \end{figure}
 
-The exact metrics generally improve as the number of available annotations grows, with MRR growing from 0.30 in 2006 to 0.452 in 2026 for the TF-IDF method. The BERT method also follows a similar trajectory, rising from 0.280 in 2006 to 0.55 in 2026. This supports the claim that as the quantity of comparison points increases, the ability of the classifier to predict exactly also increases.
+The exact metrics generally improve as the number of available annotations grows, with MRR growing by 0.154 between 2006 and 2025 for the TF-IDF method. The BERT method also follows a similar trajectory, by 0.158 across the same period. This supports the claim that as the quantity of comparison points increases, the ability of the classifier to predict exactly also increases.
 
 \begin{figure}
     \centering
@@ -642,15 +642,19 @@ The exact metrics generally improve as the number of available annotations grows
     \caption{Pseudo-historical comparison utilizing HP and HR20, testing on year $i$ and training on years $j<i$.}\label{fig:historical_hier}
 \end{figure}
 
-On the other hand, the hierarchical metrics don't seem to be affected by the quantity of annotations available to the classifier. For the TF-IDF method, HF grew from 0.262 in 2006 to 0.312 in 2025, then experiencing a dip in to 0.236 in 2026. The BERT method fares similarly, albeit with higher baseline scores; its HF grew from 0.385 in 2006 to 0.436 in 2025, and also exhibited a drop in 2026 to 0.367. The characteristics described by Verspool et al.\ \cite{verspoor/2006/categorization} and mentioned in Section~\ref{sec:methods-metrics-hierarchical} imply that both methods are typically overly specific, predicting descendants of the expected term. The relatively minimal slope of both trends suggests that the classifier was able to correctly predict the lineage of a term, which is reflected positively in the hierarchical metrics, even with minimal comparison points.
+On the other hand, the hierarchical metrics don't seem to be affected by the quantity of annotations available to the classifier. For the TF-IDF method, HP grew by 0.056 between 2006 and 2025. The BERT method fares similarly, albeit with higher baseline scores; its HP by 0.052 in the same period. The characteristics described by Verspool et al.\ \cite{verspoor/2006/categorization} and mentioned in Section~\ref{sec:methods-metrics-hierarchical} imply that both methods are typically overly specific, predicting descendants of the expected term. The relatively minimal slope of both trends suggests that the classifier was able to correctly predict the lineage of a term, which is reflected positively in the hierarchical metrics, even with minimal comparison points.
 
-\subsection{Interpretation}\label{sec:analysis-interpretation}
+\subsection{Interpretation and Discussion}\label{sec:analysis-interpretation}
 
-% TODO: Write these thoughts out formally:
-% - Unexpectedly, BERT model didn't perform as well as tfidf in the exact metrics, was context not captured, or is BERT a bad choice for this task.
-% - Perhaps sentence bert would be a better fit, designed with embeddings in mind, it could perform better on the contextualization.
-% - Did the scoring function properly select the best matches, ie. is the problem in the vectorization or the scoring function.
-% -
+Contradictory to the hypothesis presented in Section~\ref{sec:introduction-aims}, the BERT vectorization method did not provide better results than the TF-IDF method. From the analysis presented in Section~\ref{sec:analsysis-temporal}, it was deducted that both methods were overly specific. Yet the TF-IDF method was consistently the stronger of the two across the exact metrics defined in Section~\ref{sec:methods-metrics-exact} and depicted in Figure~\ref{fig:historical_exact}, meaning it selected the expected result more often. It is unclear whether this deficiency is due to the scoring function struggling to accurately represent the predicted labels, or due to the fact that the BERT model was not intended to emit contextual embeddings which are representative of the input text, as alluded to in Section~\ref{sec:development-testing}.
+
+While the BERT model can be used for this purpose, it was never intended to, unlike the SentenceBERT model developed by Reimers et al.~\cite{reimers/2019/sentence-bert}. Reimers et al.\ state that this model is specifically intended to provide `large-scale semantic similarity comparison, clustering, and information retrieval via semantic search'~\cite{reimers/2019/sentence-bert}. As it stands, the contextual vectorization method using BERT is not dead in the water, but cannot be definitively stated to be a good option when compared to TF-IDF vectorization. It performs worse overall for a significantly higher upfront computational cost.
+
+\subsection{Further Investigation}\label{sec:analysis-further}
+
+The clear path forward is to evaluate the effectiveness of using a SentenceBERT model also trained on in-domain literature to verify whether a model which was designed to emit representative contextual embeddings does actually change the outlook of using the contextual vectorization method. The BioSentVec model developed by Chen et al.~\cite{chen/2018/biosentvec} presents one such potential option. Trained on text from PubMed and notes from the MIMIC-III clinical database~\cite{chen/2018/biosentvec} developed by Johnson et al.\ \cite{johnson/2016/mimic-iii}, it contains a similar literature base as BiomedBERT~\cite{gu/2021/domainspecific} but is purposefully designed for the task of comparing embeddings.
+
+When using the BERT model, the \verb|[CLS]| is a token pre-pended to a tokenized input emitted by the WordPiece algorithm, the output embedding of which is `used as the aggregate sequence representation for classification tasks'\cite{devlin/2018/bert}. In essence, this token is representative of the entire input sequence, but intended specifically for classification tasks. This presents an alternative path in which the KNN-based scoring classifier utilized in this project is replaced by a novel GO term classifier,  which is specifically trained to predict GO terms for an input document. This approach is significantly more costly and complex, but represents a full modernization of the GOCat project, as opposed to the hybrid system this project utilized.
 
 \section{Self Assessment}\label{sec:assessment}
 
@@ -763,7 +767,7 @@ Both of the indexes are stored separately within the database, and the command h
     > python -m src.main query --method (method) [target]
 \end{Verbatim}
 
-Once the corpus has been indexed using a particular method, prediction can be carried out using that method with this command. TThe \verb|method| arguments \verb|tfidf| and \verb|bert| correspond to TF-IDF and BERT vectorization respectively.  As with the \verb|index| command, if not method is specified, TF-IDF vectorization is selected by default. If text is supplied as input in the command line, it should be enclosed in quotation marks to prevent parsing errors. Multiple targets can be provided, and predictions will be generated for each.
+Once the corpus has been indexed using a particular method, prediction can be carried out using that method with this command. The \verb|method| arguments \verb|tfidf| and \verb|bert| correspond to TF-IDF and BERT vectorization respectively.  As with the \verb|index| command, if not method is specified, TF-IDF vectorization is selected by default. If text is supplied as input in the command line, it should be enclosed in quotation marks to prevent parsing errors. Multiple targets can be provided, and predictions will be generated for each.
 
 Output is returned in CSV format with the shape and can be redirected to a file. If targets are not provided as arguments, they will be read from \verb|STDIN|. In this case, input must be terminated with the EOF character and target text must be delineated by two consecutive new-line characters.
 
@@ -793,7 +797,7 @@ Both place results in the \verb|data/cache| directory, and the latter also print
 
 \subsection{Data Usage}
 
-The contents of the database are partially acquired and derived from the NCBI E-Utilities service and as such, the disclaimer and copyright notice available at this \href{https://www.ncbi.nlm.nih.gov/About/disclaimer.html}{link} applies. The US Library of Medicine does not claim copyright over the abstracts available from PubMed, but journal publishers or authors can. Gene Ontology data from the 2026-06-15 release (DOI:10.5281) is made available under the terms of the CC BY 4.0 license. Gene Ontology Annotations Uniprot archive from the 2026-06-17 release is made available under the terms of the CC BY 4.0 license. This project makes no attempt to distribute the database, and does not recommend users of this project to do so.
+The contents of the database are partially acquired and derived from the NCBI E-Utilities service and as such, the disclaimer and copyright notice available at this \href{https://www.ncbi.nlm.nih.gov/About/disclaimer.html}{link} applies. The US Library of Medicine does not claim copyright over the abstracts available from PubMed, but journal publishers or authors can. Gene Ontology data from the 2026-06-15 release (DOI:10.5281) is made available under the terms of the CC BY 4.0 license. Gene Ontology Annotations Uniprot archive from the 2026-06-17 release is made available under the terms of the CC BY 4.0 license. This project makes no attempt to distribute this data, and does not recommend users of this project to do so.
 
 \bibliographystyle{plain}
 \bibliography{bibliography}
