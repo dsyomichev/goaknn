@@ -630,19 +630,15 @@ This section describes the procedure which should be followed in order to set up
 
 This project was developed using Python 3.13.12, and is only verified to be working on this version. Earlier versions may be compatible but no guarantee is provided. In order to prevent pollution of the system-wide Python installation, it is recommended to create a virtual environment for the project.
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        > python -m venv .venv && source .venv/bin/activate
-    \end{BVerbatim}
-\end{center}
+\begin{Verbatim}[frame=single, fontsize=\small]
+    > python -m venv .venv && source .venv/bin/activate
+\end{Verbatim}
 
 The required dependencies are described in the \verb|requirements.txt| file, and can be installed using Pip.
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        > pip install -r requirements.txt
-    \end{BVerbatim}
-\end{center}
+\begin{Verbatim}[frame=single, fontsize=\small]
+    > pip install -r requirements.txt
+\end{Verbatim}
 
 \subsubsection{Prerequisite Files}\label{sec:manual-dependency-prereq}
 
@@ -655,11 +651,9 @@ There are two files which are strict prerequisites for this project.
 
 These must be placed in the \verb|data/source| directory, which is relative to the project root directory.
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        > mkdir -p data/source
-    \end{BVerbatim}
-\end{center}
+\begin{Verbatim}[frame=single, fontsize=\small]
+    > mkdir -p data/source
+\end{Verbatim}
 
 \subsubsection{NCBI E-Utilities Configuration}\label{sec:manual-dependency-ncbi}
 
@@ -671,21 +665,16 @@ Two components within the project are downloaded automatically at runtime: the N
 
 \subsection{\textbf{Command Line Interface}}\label{sec:manual-cli}
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        > python -m src.main [command] (options) (target)
-    \end{BVerbatim}
-\end{center}
-
+\begin{Verbatim}[frame=single, fontsize=\small]
+    > python -m src.main [command] (options) (target)
+\end{Verbatim}
 A basic command line interface is included in the project in order to build the database, index the corpus, and execute prediction on input text. The three commands detailed below should be run in the order they are defined, as the database must be progressively constructed before predictions can be made. It is important to note the \verb|-m| flag used in these commands. The scripts in this project must be executed as modules in order to properly resolve dependencies.
 
 \subsubsection{Building the Database}\label{sec:manual-cli-build}
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        > python -m src.main build [table]
-    \end{BVerbatim}
-\end{center}
+\begin{Verbatim}[frame=single, fontsize=\small]
+    > python -m src.main build [table]
+\end{Verbatim}
 
 This command parses source files and constructs the tables to store the information within them. Each of the four arguments corresponds to a specific table, and certain tables are dependent on each other. Running the command with the argument omitted will build all four tables sequentially, in the correct order.
 
@@ -711,74 +700,64 @@ The \verb|terms| and \verb|relations| table require \verb|go-basic.json| to exis
 
 Building the \verb|citations| table may take a long time since over 200k publication abstracts are downloaded, and so it is recommended to obtain an API from NCBI to speed up this process. Building the \verb|citations| table is a recoverable process, in that it will not download publication abstracts already present in the table. This means that if anything goes wrong, the process can safely be restarted by specifying \verb|citations| in the argument.
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        Examples:
-        > python -m src.main build
-        > python -m src.main build terms relations
-        > source .env && python -m src.main build citations
-    \end{BVerbatim}
-\end{center}
+\begin{Verbatim}[frame=single, fontsize=\small]
+    Examples:
+    > python -m src.main build
+    > python -m src.main build terms relations
+    > source .env && python -m src.main build citations
+\end{Verbatim}
 
 \subsubsection{Indexing the Corpus}\label{sec:manual-cli-index}
 
 \begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        > python -m src.main index --method (tfidf|bert)
-    \end{BVerbatim}
+    \begin{Verbatim}[frame=single, fontsize=\small]
+        > python -m src.main index --method (method)
+    \end{Verbatim}
 \end{center}
 
-This command performs the indexing of the corpus corresponding to the method provided using the \verb|--method| flag. Two methods are implemented in this project: lexical TF-IDF vectorization and contextual BERT vectorization. If not method is provided, TF-IDF vectorization is selected by default.
+This command performs the indexing of the corpus corresponding to the method provided using the \verb|--method| flag. Two methods are implemented in this project: lexical TF-IDF vectorization and contextual BERT vectorization. The \verb|method| arguments for each are \verb|tfidf| and \verb|bert| respectively. If not method is provided, TF-IDF vectorization is selected by default.
 
 Both of the indexes are stored separately within the database, and the command has different behavior for each index. Repeated execution of the \verb|index| command with \verb|--method tfidf| will overwrite the existing index. By contrast, the indexing using \verb|--method bert| is a recoverable process, and will only vectorize the documents which are absent from the existing index. This behavior is necessary as the model inference required to vectorize a document using BERT is time consuming and since each document vectorization is independent of the corpus, it should only ever be vectorized once.
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        Examples:
-        > python -m src.main index
-        > python -m src.main index --method bert
-    \end{BVerbatim}
-\end{center}
+\begin{Verbatim}[frame=single, fontsize=\small]
+    Examples:
+    > python -m src.main index
+    > python -m src.main index --method bert
+\end{Verbatim}
 
 \subsubsection{Predicting Applicable Terms}\label{sec:manual-cli-query}
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        > python -m src.main query --method (tfidf|bert) [target]
-    \end{BVerbatim}
-\end{center}
+\begin{Verbatim}[frame=single, fontsize=\small]
+    > python -m src.main query --method (method) [target]
+\end{Verbatim}
 
-Once the corpus has been indexed using a particular method, prediction can be carried out using that method with this command. As with the \verb|index| command, if not method is specified, TF-IDF vectorization is selected by default. If text is supplied as input in the command line, it should be enclosed in quotation marks to prevent parsing errors. Multiple targets can be provided, and predictions will be generated for each.
+Once the corpus has been indexed using a particular method, prediction can be carried out using that method with this command. TThe \verb|method| arguments \verb|tfidf| and \verb|bert| correspond to TF-IDF and BERT vectorization respectively.  As with the \verb|index| command, if not method is specified, TF-IDF vectorization is selected by default. If text is supplied as input in the command line, it should be enclosed in quotation marks to prevent parsing errors. Multiple targets can be provided, and predictions will be generated for each.
 
 Output is returned in CSV format with the shape and can be redirected to a file. If targets are not provided as arguments, they will be read from \verb|STDIN|. In this case, input must be terminated with the EOF character and target text must be delineated by two consecutive new-line characters.
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        Examples:
-        > python -m src.main query "Test String 1" "Test String 2"
-        > python -m src.main query --method bert < input.txt > output.csv
-    \end{BVerbatim}
-\end{center}
+\begin{Verbatim}[frame=single, fontsize=\small]
+    Examples:
+    > python -m src.main query "Test 1" "Test 2"
+    > python -m src.main query --method bert < in.txt > out.csv
+\end{Verbatim}
 
 \subsection{Running the Analysis}\label{sec:manual-analysis}
 
 There are a total of two analysis scripts which are not bundled in the core command line utility: \verb|historical.py| and \verb|hyperparameters.py|. These must also be executed as modules, and take two arguments: the vectorization method and the evaluation metric. These scripts output raw results in JSON format to the \verb|data/cache| directory, which is automatically created when either script runs.
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        > python -m tests.hyperparameters [tfidf|bert] [exact|hierarchical]
-        > python -m tests.historical [tfidf|bert] [exact|hierarchical]
-    \end{BVerbatim}
-\end{center}
+\begin{Verbatim}[frame=single, fontsize=\small]
+    > python -m tests.hyperparameters [method] [metric]
+    > python -m tests.historical [method] [metric]
+\end{Verbatim}
 
-In order to generate the visualizations and summarized results, there are an additional two scripts which read the raw JSON results: \verb|visualize.py| and \verb|summarize.py|. Both place results in the \verb|data/cache| directory, and the latter also prints to the console. It should be noted that these scripts require all eight possible argument combinations of the \verb|historical.py| and \verb|hyperparameters| scripts to be run. An exception will be thrown if a raw JSON result file is missing.
+In order to generate the visualizations and summarized results, there are an additional two scripts which read the raw JSON results: \verb|visualize.py| and \verb|summarize.py|. The \verb|method| arguments \verb|tfidf| and \verb|bert| correspond to TF-IDF and BERT vectorization respectively, the \verb|metric| arguments \verb|exact| and \verb|hierarchical| correspond to the evaluation methods described in Section~\ref{sec:methods-metrics}.
 
-\begin{center}
-    \begin{BVerbatim}[fontsize=\small]
-        > python -m tests.visualize
-        > python -m tests.summarize
-    \end{BVerbatim}
-\end{center}
+Both place results in the \verb|data/cache| directory, and the latter also prints to the console. It should be noted that these scripts require all eight possible argument combinations of the \verb|historical.py| and \verb|hyperparameters| scripts to be run. An exception will be thrown if a raw JSON result file is missing.
+
+\begin{Verbatim}[frame=single, fontsize=\small]
+    > python -m tests.visualize
+    > python -m tests.summarize
+\end{Verbatim}
 
 \subsection{Data Usage}
 
