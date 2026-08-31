@@ -4,7 +4,7 @@ This file describes the procedure which should be followed in order to set up th
 
 ## Dependency Installation
 
-This project was developed using Python 3.13.12, and is only verified to be working on this version. Earlier versions may be compatible but no guarentee is provided. In order to prevent polution of the system-wide Python installation, it is recommended to create a virtual environment for the project.
+This project was developed using Python 3.13.12, and is only verified to be working on this version. Earlier versions may be compatible but no guarantee is provided. In order to prevent pollution of the system-wide Python installation, it is recommended to create a virtual environment for the project.
 
 ```
 python -m venv .venv && source .venv/bin/activate
@@ -20,10 +20,10 @@ pip install -r requirements.txt
 
 There are two files which are strict prerequisites for this project.
 
-- `go-basic.json` (_*~75MB*_) - The Gene Ontology release file available at [https://purl.obolibrary.org/obo/go/go-basic.json](https://purl.obolibrary.org/obo/go/go-basic.json).
-- `goa_uniprot_all.gaf.gz` (_*~12GB*_) - The Gene Ontology Annotations archive available at [https://ftp.ebi.ac.uk/pub/databases/GO/goa/UNIPROT/goa_uniprot_all.gaf.gz](https://ftp.ebi.ac.uk/pub/databases/GO/goa/UNIPROT/goa_uniprot_all.gaf.gz).
+- `go-basic.json` (_*71.2 MB*_) - The Gene Ontology release file available at [https://purl.obolibrary.org/obo/go/go-basic.json](https://purl.obolibrary.org/obo/go/go-basic.json).
+- `goa_uniprot_all.gaf.gz` (_*11.6 GB*_) - The Gene Ontology Annotations archive available at [https://ftp.ebi.ac.uk/pub/databases/GO/goa/UNIPROT/goa_uniprot_all.gaf.gz](https://ftp.ebi.ac.uk/pub/databases/GO/goa/UNIPROT/goa_uniprot_all.gaf.gz).
 
-These must be placed in the `data/source` directory, which be relative to the project root directory.
+These must be placed in the `data/source` directory, which is relative to the project root directory.
 
 ```
 mkdir -p data/source
@@ -35,7 +35,7 @@ This project interacts with the NCBI E-Utilities API, which asks that users prov
 
 ### Runtime Components
 
-Two components within the project are downloaded automatically at runtime: the NLTK stopwords list and the BiomedBERT model. No manual aquisition of these components is necessary, but it should be noted that an internet connection is required the first time these components are used.
+Two components within the project are downloaded automatically at runtime: the NLTK stopwords list and the BiomedBERT model. No manual acquisition of these components is necessary, but it should be noted that an internet connection is required the first time these components are used.
 
 ## Command Line Interface
 
