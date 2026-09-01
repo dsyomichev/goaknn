@@ -20,7 +20,7 @@
 \newtheorem*{remark}{Remark}
 
 \title{GOA-KNN:\@ Electronic Annotation of Gene Ontology Terms}
-\author{Daniel Syomichev}
+\author{}
 
 \newcommand{\Programme}{Data Science and Analytics}
 
@@ -58,6 +58,10 @@ Early approaches to electronic annotation of GO terms were thesaurus or dictiona
 The program corresponding to this project is composed of two abstracted primary components. The vectorizer, which encodes raw text documents into a real vector space, and the classifier, which compares a test input to a fully vectorized collection of document in order to assign the most applicable GO terms to it. Importantly, these components are defined by their function rather than implementation, as the goal is to design them in a modular fashion such that it is possible to examine the differences between different implementations. This project utilizes this design philosophy to compare two vectorization methods, the TF-IDF process and language model embeddings, hypothesizing that the language model will be capable of providing better results.
 
 The motivation behind this project is simple, GOCat is no longer officially available. This serves as the primary analytical entry-point, since the quantity of both biomedical text and annotations linking publications to GO terms has substantially increased, and the high availability of pre-trained language models provides an alternative vectorization method to evaluate. The representation of a document is treated as in independent parameter within the experiment, allowing direct comparisons between vectorization methods. In place of the Terrier Platform, this project utilizes a term and inverse document frequency sparse vector representation, and additionally implements a dense representation using contextual embeddings produced by the BiomedBERT model~\cite{gu/2021/domainspecific}.
+
+\subsection{Career and Future}
+
+Given that language models dominate the tech space at the present moment, it has become more important to understand how and why these models work. As someone who, prior to this project, did not have any understanding of the architecture and mechanics of a model, this project has equipped me with a baseline understanding that allows me to continue research into the space at higher levels of detail and complexity. This will ultimately help me with my career as I would love the opportunity to utilize the technology not as a consumer, but as someone who creates tools which provide real value. In addition to the knowledge this project has equipped me with, I have learned a lot about managing a large scale project as an individual, and can apply these learnings to working on a team, on a project of even larger complexity.
 
 \subsection{Glossary and Notation}\label{sec:introduction-glossary}
 
@@ -434,7 +438,7 @@ To give a practical example, suppose $K=2$ such that $(\hat{s}_1, \hat{s}_2) = (
 
 \subsubsection{Truncation}\label{sec:methods-scoring-truncation}
 
-Larger values of $K$ introduce more terms into $Y_K$ and thus transitively increases the length of $\hat{T}$. While this increase is entirely dependent on the terms annotated to the neighbor documents, for large values of $K$ the tail of $\hat{T}$ is often full of low scoring, poor matching terms. In order to reduce the length of the prediction sequence, Gobiell et al.\ introduced a truncation parameter which took the $L$ highest scoring terms and discarded the rest~\cite{gobeill/2013/managing}. Let $L \leq q$ such that the truncated prediction sequence $\hat{T}_L = (t_1, \dots, t_L)$. This truncated sequence is representative of the final prediction sequence emitted by the classifier.
+Larger values of $K$ introduce more terms into $Y_K$ and thus transitively increases the length of $\hat{T}$. While this increase is entirely dependent on the terms annotated to the neighbor documents, for large values of $K$ the tail of $\hat{T}$ is often full of low scoring, poor matching terms. Let $L \leq q$ such that the truncated prediction sequence $\hat{T}_L = (t_1, \dots, t_L)$. This truncated sequence is representative of the final prediction sequence emitted by the classifier.
 
 \subsubsection{Hyperparameters}\label{sec:methods-scoring-hyperparameters}
 
@@ -448,7 +452,7 @@ The amplification parameter directly influences the scoring mechanism by increas
     \caption{Similarity amplification at $\rho \in \{1,3,5\}$.}\label{fig:rho-vis}
 \end{figure}
 
-While the truncation parameter $L$ does influence the output, and is evaluated alongside the hyperparameters in Section~\ref{sec:analsysis-tuning}, it is not a true hyperparameter as it does not change the scoring in any way. The highest scoring term will be the same regardless of $L=1$ or $L=200$. Gobiell et al.\ used this parameter as a way to measure GOCat's effectiveness in different scenarios. They state for a process `where a user has to screen the output list to select correct and ignore incorrect predictions' that `screening 20 terms is a realistic scenario'~\cite{gobeill/2013/managing}.
+While the truncation parameter $L$ does influence the output, and is evaluated alongside the hyperparameters in Section~\ref{sec:analsysis-tuning}, it is not a true hyperparameter as it does not change the scoring in any way. The highest scoring term will be the same regardless of $L=1$ or $L=200$, and is introduced simply as a way to limit the number of terms the classifier emits.
 
 \subsection{Evaluation Metrics}\label{sec:methods-metrics}
 
@@ -657,6 +661,21 @@ The clear path forward is to evaluate the effectiveness of using a SentenceBERT 
 When using the BERT model, the \verb|[CLS]| is a token pre-pended to a tokenized input emitted by the WordPiece algorithm, the output embedding of which is `used as the aggregate sequence representation for classification tasks'\cite{devlin/2018/bert}. In essence, this token is representative of the entire input sequence, but intended specifically for classification tasks. This presents an alternative path in which the KNN-based scoring classifier utilized in this project is replaced by a novel GO term classifier,  which is specifically trained to predict GO terms for an input document. This approach is significantly more costly and complex, but represents a full modernization of the GOCat project, as opposed to the hybrid system this project utilized.
 
 \section{Self Assessment}\label{sec:assessment}
+
+To outline the final deliverables, my project was required to provide the following:
+\begin{enumerate}
+    \item The development of a stand alone tool to implement the equivalent of GOCat.
+    \item An API to query the tool.
+    \item Rigourous testing of the tool.
+\end{enumerate}
+
+My project accomplished points one and two completely, and partially missed the mark on point three. The program written for this project provides a prediction mechanism which works according my best understanding of the original GOCat project, and assigns the best matching GO terms to provided text input, achieving an average MRR of about 0.45 across ten folds of the entire corpus. I was also able to create an API to interact with all the necessary functionalities of the project, including constructing the inital database tables and populating them with the data found in the source files, vectorizing the corpus, and evaluating a prediction for an input publication abstract. When it comes to testing, the mechanics of the classifier were well explored, in that I conducted a number of analysis tests which verified that the classifer was working as in the general range of the original GOCat classifier. I performed countless manual integration tests to ensure that the program functions correctly, but in hindsight, I should have been writing small unit and integration tests which could then be automated and exist to prove this claim. In addition to the three deliverables outlined above, I also implemented an alternate vectorization method through the use of contextual embeddings infered by a BERT language model, and tested this method alongside the TF-IDF method in order to provide a comparison between the two.
+
+Generally, I am happy with the software produced by this project. It aligns well with the goals which are outlines in Section~\ref{sec:introduction-aims} and the project is well organized. There is clear separation and modularity between the functionalities each file provides. I beleive the integration into the SKLearn ecosystem is a strong point of my project, in that it not only provided utility for me when developing and analyzing the project, but can also provide utility for others who may wish to use parts of this project in their own workflows. The struggle for me throughout this process was time management. I had the tendency to over-engineer parts of my project which would hold no bearing over the results that would be presented. The masked array example from Section~\ref{sec:development-implementation} is a good example of this, and a place where I lost significant time to repeated refactors of already functional code which did not move me forward with the completion of this project. Given the opportunity to start again, I would first develop a feature complete version of the project, and only then refactor if time permits.
+
+I have learned that when it comes creating a project at this scale, it becomes incredibly important to develop a well thought out plan which considers not only the time it would take to accomplish a task, but also provides a general sense of direction as to how that task should be implemented. This was a failure of my original plan, in that I was unable to stick to my proposed timeline due to certain parts of the project, like analysis, taking significantly longer than anticipated. This was ultimately down to my lack of planning ahead.
+
+I would absolutely explore the options provided in Section~\ref{sec:analysis-further}. While the novel classifier is a more abstract idea that may or may not work in practice, testing the BioSentVec model in place of the BiomedBERT model used in this project could genuinely be something I could do independently and could provide genuine results. On a more general note, I will continue to explore the language model space. This is something I was entirely unfamiliar with on a technical level prior to working on this project,  but have found entirely fascinating after having spent a number of hours researching the topic.
 
 \section{User Manual and Guide}\label{sec:manual}
 

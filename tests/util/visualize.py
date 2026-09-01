@@ -83,7 +83,7 @@ def plot_historical_comparison(result_tfidf, result_bert, metric="exact"):
     ymin, ymax = 0.1, 1
 
     metric_keys = ["mrr", "mar"] if metric == "exact" else ["hp", "hr"]
-    metric_labels = ["MRR", "R20"] if metric == "exact" else ["HP", "HR20"]
+    metric_labels = ["MRR", "MAR"] if metric == "exact" else ["HP", "HR"]
 
     for i, (axis, key) in enumerate(zip(axes, metric_keys)):
         y_tfidf = numpy.array([value[key] for value in result_tfidf.values()])
@@ -102,7 +102,7 @@ def plot_historical_comparison(result_tfidf, result_bert, metric="exact"):
         axis.hlines(numpy.linspace(ymin, ymax, 10), xmin, xmax, color="gray", linestyle="dotted")
 
     figure.legend(loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.025))
-    figure.suptitle(f"Psuedo-historical Comparison ({"MRR/R20" if metric == "exact" else "HP/HR20"})")
+    figure.suptitle(f"Psuedo-historical Comparison ({"MRR/MAR" if metric == "exact" else "HP/HR"})")
 
     return figure
 
