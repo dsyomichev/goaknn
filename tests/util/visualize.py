@@ -157,11 +157,13 @@ def plot_tfidf_versus_bert_hf(result_tfidf, result_bert, metric):
 
         axis.pcolormesh(X, Y, Z, vmin=0, vmax=1, cmap="gray")
 
-    patches = [Patch(color="black", label=" TF-IDF > BERT")]
+    patches = [Patch(color="black", label="TF-IDF"), Patch(facecolor="white", label="BERT", edgecolor="black")]
 
     figure.legend(handles=patches, loc="lower center", bbox_to_anchor=(0.5, -0.1))
 
-    figure.suptitle("TF-IDF vs. BERT Binary Comparison (HF)")
+    metric_label = "HF" if metric == "hierarchical" else "MAR"
+
+    figure.suptitle(f"TF-IDF vs. BERT Binary Comparison ({metric_label})")
 
     return figure
 
