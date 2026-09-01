@@ -31,7 +31,7 @@ mkdir -p data/source
 
 ### NCBI E-Utilities Configuration
 
-This project interacts with the NCBI E-Utilities API, which asks that users provide a project name and contact email address with each request. In order to conform to this requirement, the `NCBI_PROJECT_NAME` and `NCBI_PROJECT_EMAIL` environment variables should be populated with the appropriate values. Optionally, an API key can be obtained by creating an account with NCBI at [https://www.ncbi.nlm.nih.gov/account/](https://www.ncbi.nlm.nih.gov/account/) and be provided through the `NCBI_API_KEY` environment variable. Providing an API key increases the rate limit for requests from three per second to ten, decreasing the time required to aquire the publication abstracts required by this project.
+This project interacts with the NCBI E-Utilities API, which asks that users provide a project name and contact email address with each request. In order to conform to this requirement, the `NCBI_PROJECT_NAME` and `NCBI_PROJECT_EMAIL` environment variables should be populated with the appropriate values. Optionally, an API key can be obtained by creating an account with NCBI at [https://www.ncbi.nlm.nih.gov/account/](https://www.ncbi.nlm.nih.gov/account/) and be provided through the `NCBI_API_KEY` environment variable. Providing an API key increases the rate limit for requests from three per second to ten, decreasing the time required to acquire the publication abstracts required by this project.
 
 ### Runtime Components
 
@@ -80,7 +80,7 @@ python -m src.main index --method (tfidf | bert)
 
 This command performs the indexing of the corpus corresponding to the method provided using the `--method` flag. Two methods are implemented in this project: lexical TF-IDF vectorization and contextual BERT vectorization. If not method is provided, TF-IDF vectorization is selected by default.
 
-Both of the indexes are stored seperately within the database, and the command has different behaviour for each index. Repeated execution of the `index` command with `--method tfidf` will overwrite the existing index. By contrast, the indexing using `--method bert` is a recoverable process, and will only vectorize the documents which are absent from the existing index. This behaviour is necessary as the model inference required to vectorize a document using BERT is time consuming and since each document vectorization is independent of the corpus, it should only ever be vectorized once.
+Both of the indexes are stored separately within the database, and the command has different behavior for each index. Repeated execution of the `index` command with `--method tfidf` will overwrite the existing index. By contrast, the indexing using `--method bert` is a recoverable process, and will only vectorize the documents which are absent from the existing index. This behaviour is necessary as the model inference required to vectorize a document using BERT is time consuming and since each document vectorization is independent of the corpus, it should only ever be vectorized once.
 
 #### Examples:
 
@@ -122,4 +122,4 @@ In order to generate the visualizations and summarized results, there are an add
 
 ## Data Usage Disclaimers
 
-The contents of the database are partially aquired and derived from the NCBI E-Utilities service and as such, the disclaimer and copyright notice available at [https://www.ncbi.nlm.nih.gov/About/disclaimer.html](https://www.ncbi.nlm.nih.gov/About/disclaimer.html) applies. The US Library of Medicine does not claim copyright over the abstracts available from PubMed, but journal publishers or authors can. Gene Ontology data from the 2026-06-15 release (DOI:10.5281) is made available under the terms of the CC BY 4.0 license. Gene Ontology Annotations Uniprot archive from the 2026-06-17 release is made available under the terms of the CC BY 4.0 license. This project makes no attempt to distribute the database, and does not recommend users of this project to do so.
+The contents of the database are partially acquired and derived from the NCBI E-Utilities service and as such, the disclaimer and copyright notice available at [https://www.ncbi.nlm.nih.gov/About/disclaimer.html](https://www.ncbi.nlm.nih.gov/About/disclaimer.html) applies. The US Library of Medicine does not claim copyright over the abstracts available from PubMed, but journal publishers or authors can. Gene Ontology data from the 2026-06-15 release (DOI:10.5281) is made available under the terms of the CC BY 4.0 license. Gene Ontology Annotations Uniprot archive from the 2026-06-17 release is made available under the terms of the CC BY 4.0 license. This project makes no attempt to distribute the database, and does not recommend users of this project to do so.

@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from scipy.sparse import coo_array
 
-ROOT_DIR = Path(__file__, "../../..").resolve()
+ROOT_DIR = Path(__file__, "../..").resolve()
 DB_FILE = ROOT_DIR.joinpath("data/base.db")
 
 BATCH_SIZE = 20000
