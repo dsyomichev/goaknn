@@ -2,7 +2,10 @@ import json
 import warnings
 import sys
 import pickle
+import numpy
 
+from sklearn.base import BaseEstimator
+from sklearn.utils.validation import check_is_fitted
 from joblib import Memory
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV, KFold
@@ -14,12 +17,14 @@ from argparse import ArgumentParser
 from lib.OntologyClassifier import OntologyClassifier
 from lib.preprocess import tokenize
 
-from src.db.DatabaseClient import DatabaseClient
-from src.db.execute import execute
+from src.db import DatabaseClient, execute
 
 from tests.util.metrics import hp_hr_hf, mrr_mar
-from tests.util.serializers import primitive
-from tests.util.mock import MockVectorizer, SELECT_CONTENT_EMBEDDING_MAPPING
+
+SELECT_CONTENT_EMBEDDING_MAPPING = """
+    SELECT citations.content, embeddings.data
+    FROM citations JOIN embeddings ON citations.id = embeddings.id
+"""
 
 CACHE_DIR = Path(__file__, "../../data/cache/").resolve()
 MEMORY_DIR = CACHE_DIR.joinpath("memory/").resolve()
@@ -36,6 +41,36 @@ N_SPLITS = 10
 RANDOM_STATE = 0
 
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+class MockVectorizer(BaseEstimator):
+
+    def __init__(self, mapping):
+        self.mapping = mapping
+
+    def __sklearn_is_fitted__(self):
+        return hasattr(self, "_is_fitted")
+
+    def fit(self, X, y=None):
+        self._is_fitted = True
+
+        return self
+
+    def transform(self, X):
+        check_is_fitted(self)
+
+        return numpy.array([self.mapping[text] for text in X])
+
+    def fit_transform(self, X, y=None):
+        return self.fit(X, y).transform(X)
+
+
+# https://stackoverflow.com/a/52604722
+def primitive(value):
+    if type(value).__module__ == numpy.__name__:
+        return value.tolist() if isinstance(value, numpy.ndarray) else value.item()
+
+    return None
 
 
 def init_hierarchical_score(relations):

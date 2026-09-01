@@ -3,7 +3,7 @@ import re
 
 from pathlib import Path
 
-from src.db.execute import execute
+from src.db import execute
 
 ROOT_DIR = Path(__file__, "../../..").resolve()
 SOURCE_FILE = ROOT_DIR.joinpath("data/source/go-basic.json").resolve()
@@ -50,6 +50,7 @@ def read(path):
 
                 id = int(result.group(1))
 
+                # Only yield if id and label were both extracted
                 yield id, label
 
 

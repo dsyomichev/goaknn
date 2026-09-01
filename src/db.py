@@ -1,8 +1,13 @@
 import numpy
 import itertools
 import pickle
+import sqlite3
 
+from pathlib import Path
 from scipy.sparse import coo_array
+
+ROOT_DIR = Path(__file__, "../../..").resolve()
+DB_FILE = ROOT_DIR.joinpath("data/base.db")
 
 BATCH_SIZE = 20000
 
@@ -109,6 +114,15 @@ SELECT_EMBEDDINGS = """
     SELECT id, data FROM embeddings
     ORDER BY id ASC
 """
+
+
+def execute(proxy, **kwargs):
+    connection = sqlite3.connect(DB_FILE)
+
+    try:
+        return proxy(connection, **kwargs)
+    finally:
+        connection.close()
 
 
 class DatabaseClient:

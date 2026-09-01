@@ -7,8 +7,7 @@ from matplotlib.patches import Patch
 from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 
-from src.db.DatabaseClient import DatabaseClient
-from src.db.execute import execute
+from src.db import DatabaseClient, execute
 from tests.historical import train_test_split_temporal, SPLIT_TEMPORAL_START, SPLIT_TEMPORAL_STEP
 
 CACHE_DIR = Path(__file__, "../../../data/cache").resolve()
@@ -80,7 +79,7 @@ def plot_historical_comparison(result_tfidf, result_bert, metric="exact"):
     x = numpy.array([int(key) for key in result_tfidf.keys()])
 
     xmin, xmax = numpy.min(x) - 1, numpy.max(x) + 1
-    ymin, ymax = 0.1, 1
+    ymin, ymax = 0.1, 0.6 if metric == "exact" else 1.0
 
     metric_keys = ["mrr", "mar"] if metric == "exact" else ["hp", "hr"]
     metric_labels = ["MRR", "MAR"] if metric == "exact" else ["HP", "HR"]
@@ -93,13 +92,14 @@ def plot_historical_comparison(result_tfidf, result_bert, metric="exact"):
 
         axis.set_ylabel(metric_labels[0] if key == metric_keys[0] else metric_labels[1])
         axis.set_xlabel("Year" if i else "")
+
         axis.set_xlim(xmin, xmax)
         axis.set_ylim(ymin, ymax)
 
+        axis.hlines(numpy.linspace(ymin, ymax, 10), xmin, xmax, color="gray", linestyle="dotted")
+
         axis.plot(x, y_tfidf, label="TF-IDF" if not i else "", color="black", linestyle="solid")
         axis.plot(x, y_bert, label="BERT" if not i else "", color="black", linestyle="dashed")
-
-        axis.hlines(numpy.linspace(ymin, ymax, 10), xmin, xmax, color="gray", linestyle="dotted")
 
     figure.legend(loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.025))
     figure.suptitle(f"Psuedo-historical Comparison ({"MRR/MAR" if metric == "exact" else "HP/HR"})")
@@ -201,6 +201,11 @@ def plt_train_test_split_temporal_size(connection):
     x = numpy.array(x)
     ys_train = numpy.array(ys_train)
     ys_test = numpy.array(ys_test)
+
+    xmin, xmax = numpy.min(x) - 1, numpy.max(x) + 1
+
+    axis.set_xticks(x)
+    axis.set_xlim(xmin, xmax)
 
     axis.set_xlabel("Year")
     axis.set_ylabel("Size")
@@ -309,6 +314,7 @@ for method in ["tfidf", "bert"]:
 
     figure.savefig(output_path)
 
+
 ## Historical Comparison (Exact)
 
 with open(CACHE_DIR.joinpath(f"historical_tfidf_exact.json")) as file:
@@ -340,6 +346,7 @@ figure.set_size_inches((12, 6))
 output_path = Path.joinpath(CACHE_DIR, f"historical_hierarchical.png")
 
 figure.savefig(output_path, bbox_inches="tight")
+
 
 ## Versus (HF)
 

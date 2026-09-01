@@ -90,18 +90,22 @@ def hp_hr_hf(y_true, y_pred, relations):
     hr_ag = 0
     hf_ag = 0
 
+    # iterate each document y_true, y_pred set pairing, expand each label to it's lineage set so y_###_expanded is then list of sets
     for y_true_expanded, y_pred_expanded in zip(expand(y_true), expand(y_pred)):
         expansion_precisions = []
         expansion_recalls = []
 
+        # iterate each term lineage, determine
         for y_pred_lineage in y_pred_expanded:
             pool = []
 
+            # iterate each label in the lineage and calculate the precision for each
             for y_true_lineage in y_true_expanded:
                 intersect = y_pred_lineage & y_true_lineage
 
                 pool.append(len(intersect) / len(y_pred_lineage))
 
+            # Only append the highest scoring from the pool
             expansion_precisions.append(max(pool))
 
         for y_true_lineage in y_true_expanded:
@@ -114,6 +118,7 @@ def hp_hr_hf(y_true, y_pred, relations):
 
             expansion_recalls.append(max(pool))
 
+        # Account for zero division if somehow true or pred label sets are empty
         hpi = 0 if not expansion_precisions else sum(expansion_precisions) / len(y_pred_expanded)
         hri = 0 if not expansion_recalls else sum(expansion_recalls) / len(y_true_expanded)
         hfi = 0 if not hpi and not hri else 2 * (hpi * hri) / (hpi + hri)
@@ -122,6 +127,7 @@ def hp_hr_hf(y_true, y_pred, relations):
         hr_ag += hri
         hf_ag += hfi
 
+    # also account for zero div. here in case empty parameters were passed, shouldn't actually ever happen
     hp = 0 if not n else hp_ag / n
     hr = 0 if not n else hr_ag / n
     hf = 0 if not n else hf_ag / n

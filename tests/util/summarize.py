@@ -7,8 +7,7 @@ from sklearn.preprocessing import StandardScaler
 
 CACHE_DIR = Path(__file__, "../../../data/cache").resolve()
 
-from src.db.DatabaseClient import DatabaseClient
-from src.db.execute import execute
+from src.db import DatabaseClient, execute
 
 results = {}
 

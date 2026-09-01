@@ -4,7 +4,7 @@ import requests
 
 from xml.etree import ElementTree
 
-from src.db.execute import execute
+from src.db import execute
 
 PROJECT_NAME = os.environ.get("NCBI_PROJECT_NAME")
 PROJECT_EMAIL = os.environ.get("NCBI_PROJECT_EMAIL")
@@ -102,6 +102,7 @@ def parse(response):
 
 
 def fetch(batch):
+    # Construct the HTTP request here
     payload = {"db": "pubmed", "rettype": "abstract", "retmode": "xml"}
 
     if PROJECT_NAME:
@@ -120,6 +121,7 @@ def fetch(batch):
             response = requests.post(REMOTE_ENDPOINT, payload)
             response.raise_for_status()
 
+            # Process the HTTP response here
             return parse(response)
         except:
             if i == MAX_RETRY - 1:

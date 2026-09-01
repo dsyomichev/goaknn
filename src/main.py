@@ -1,18 +1,21 @@
 import sys
 import re
+import sys
+import csv
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import StandardScaler
+from argparse import ArgumentParser
 
 from lib.OntologyClassifier import OntologyClassifier
 from lib.BertEmbeddingsVectorizer import BertEmbeddingsVectorizer
 from lib.preprocess import tokenize
 
-from src.db.DatabaseClient import DatabaseClient
-from src.db.execute import execute
+from src.db import DatabaseClient, execute
 from src.build import terms, relations, annotations, citations
-from src.parser import parser
-from src.output import output
+
+DELIMITER = ","
+LINE_TERMINATOR = "\n"
 
 BATCH_SIZE = 1
 
@@ -31,6 +34,30 @@ STDIN_DOC_SEP = r"\n\s*\n"
 N_NEIGHBORS = 200
 N_LABELS = 20
 N_JOBS = -1
+
+parser = ArgumentParser()
+
+sub_act = parser.add_subparsers(dest="command")
+
+build_parser = sub_act.add_parser("build")
+index_parser = sub_act.add_parser("index")
+query_parser = sub_act.add_parser("query")
+
+build_parser.add_argument("target", choices=["annotations", "citations", "terms", "relations"], nargs="*")
+
+index_parser.add_argument("--method", choices=["tfidf", "bert"], default="tfidf")
+
+query_parser.add_argument("--method", choices=["tfidf", "bert"], default="tfidf")
+query_parser.add_argument("target", nargs="*")
+
+
+def output(term_ids, term_scores, labels):
+
+    writer = csv.writer(sys.stdout, delimiter=DELIMITER, lineterminator=LINE_TERMINATOR)
+
+    for i, (ids, scores) in enumerate(zip(term_ids, term_scores)):
+        for id, score in zip(ids, scores):
+            writer.writerow([i, id, labels[id], score])
 
 
 def main(connection):
@@ -66,6 +93,7 @@ def main(connection):
         else:
             transformer = BertEmbeddingsVectorizer(model_name=MODEL_NAME)
 
+            # Create the embeddings table if it doesn't exists by passing empty lists
             client.set_embeddings([], [])
 
             contents, ids = client.get_citations_not_in("embeddings")

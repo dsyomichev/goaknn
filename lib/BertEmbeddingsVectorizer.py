@@ -18,6 +18,7 @@ class BertEmbeddingsVectorizer(BaseEstimator):
         if self.device_name:
             self.device_ = torch.device(self.device_name)
         else:
+            # https://www.simplified.guide/pytorch/device-select
             self.device_ = torch.accelerator.current_accelerator(check_available=True) or torch.device("cpu")
 
         self.tokenizer_ = AutoTokenizer.from_pretrained(self.model_name)
@@ -41,6 +42,7 @@ class BertEmbeddingsVectorizer(BaseEstimator):
         with torch.inference_mode():
             hidden = self.model_(**tokens).last_hidden_state
 
+        # Calculate the mean pooled embedding with respect to attention mask for whole batch
         att_mask = tokens["attention_mask"].unsqueeze(-1)
         masked_hidden = hidden * att_mask
         results = masked_hidden.sum(axis=1) / att_mask.sum(axis=1)

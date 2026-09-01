@@ -42,6 +42,7 @@ class OntologyClassifier(BaseEstimator):
 
         self.m_neighbors_ = self.n_neighbors if not self.m_neighbors else self.m_neighbors
 
+        # https://scikit-learn.org/stable/developers/utilities.html#validation-tools
         self.compute_ = check_memory(self.memory).cache(compute, ignore=["n_jobs"]) if self.memory else compute
 
         self._is_fitted = True
@@ -59,21 +60,26 @@ class OntologyClassifier(BaseEstimator):
         for pred_distances, pred_indices in zip(distances, indices):
             result = {}
 
+            # Filter out the exact matches if the parameter is set, used for historical analysis
             if self.ignore_exact:
                 ignore_mask = ~numpy.isclose(pred_distances, numpy.zeros_like(pred_distances), atol=1e-5)
                 pred_distances, pred_indices = pred_distances[ignore_mask], pred_indices[ignore_mask]
 
+            # Truncate the result to match n_neighbors in case m_neighbors > n_neighbors, used in hyperparameter analysis
             pred_distances, pred_indices = pred_distances[: self.n_neighbors], pred_indices[: self.n_neighbors]
 
             similarities = (1 - pred_distances) ** self.e_amplification
 
+            # Calculate the aggregate of amp. similarities for each term in the neighbors true set, collect them in a dict
             for i, similarity in zip(pred_indices, similarities):
                 for label in self.y_train_[i]:
                     result[label] = result.get(label, 0) + similarity
 
+            # Convert the dict to list of tuples and sort on the score, then truncate
             sorted_result = sorted(result.items(), key=lambda item: item[1], reverse=True)
             trunc_result = sorted_result if not self.n_labels else sorted_result[: self.n_labels]
 
+            # Append the results to the overall lists containing results for the batch
             y_pred.append([labels for (labels, _) in trunc_result])
             sim_pred.append([similarity for (_, similarity) in trunc_result])
 

@@ -14,6 +14,7 @@ def normalize(text):
     return text.replace("'", "").lower()
 
 
+# https://stackoverflow.com/q/1988804
 @functools.cache
 def stem(word):
     return stemmer.stem(word)

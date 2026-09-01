@@ -4,6 +4,10 @@ import datetime
 import pickle
 import json
 
+import numpy
+
+from sklearn.base import BaseEstimator
+from sklearn.utils.validation import check_is_fitted
 from argparse import ArgumentParser
 from pathlib import Path
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -14,12 +18,9 @@ from sklearn.pipeline import Pipeline
 from lib.OntologyClassifier import OntologyClassifier
 from lib.preprocess import tokenize
 
-from src.db.execute import execute
-from src.db.DatabaseClient import DatabaseClient
+from src.db import DatabaseClient, execute
 
-from tests.util.mock import MockVectorizer, SELECT_CONTENT_EMBEDDING_MAPPING
 from tests.util.metrics import hp_hr_hf, mrr_mar
-from tests.util.serializers import primitive
 
 SCRIPT_NAME = Path(__file__).stem
 CACHE_DIR = Path(__file__, "../../data/cache/").resolve()
@@ -32,6 +33,11 @@ SELECT_ANNOTATIONS_WITH_DATES_IN = """
     SELECT citation_id, term_id, date FROM annotations
     WHERE citation_id IN (SELECT id FROM {})
     ORDER BY date ASC
+"""
+
+SELECT_CONTENT_EMBEDDING_MAPPING = """
+    SELECT citations.content, embeddings.data
+    FROM citations JOIN embeddings ON citations.id = embeddings.id
 """
 
 N_JOBS = -1
@@ -49,6 +55,36 @@ BEST_PARAMS = {
 }
 
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+class MockVectorizer(BaseEstimator):
+
+    def __init__(self, mapping):
+        self.mapping = mapping
+
+    def __sklearn_is_fitted__(self):
+        return hasattr(self, "_is_fitted")
+
+    def fit(self, X, y=None):
+        self._is_fitted = True
+
+        return self
+
+    def transform(self, X):
+        check_is_fitted(self)
+
+        return numpy.array([self.mapping[text] for text in X])
+
+    def fit_transform(self, X, y=None):
+        return self.fit(X, y).transform(X)
+
+
+# https://stackoverflow.com/a/52604722
+def primitive(value):
+    if type(value).__module__ == numpy.__name__:
+        return value.tolist() if isinstance(value, numpy.ndarray) else value.item()
+
+    return None
 
 
 def init_hierarchical_score(relations):

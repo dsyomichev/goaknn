@@ -3,7 +3,7 @@ import re
 
 from pathlib import Path
 
-from src.db.execute import execute
+from src.db import execute
 
 ROOT_DIR = Path(__file__, "../../..").resolve()
 SOURCE_FILE = ROOT_DIR.joinpath("data/source/goa_uniprot_all.gaf.gz").resolve()
@@ -31,6 +31,7 @@ INSERT_ANNOTATION = """
 
 
 def read(path):
+    # https://stackoverflow.com/questions/10566558
     with gzip.open(path, "rt") as file:
         for line in file:
             if line.startswith("!"):
@@ -63,6 +64,7 @@ def read(path):
             except:
                 continue
 
+            # only yield if term_id, citation_id and date can all be extracted from the line in the archive
             yield term_id, citation_id, date
 
 
