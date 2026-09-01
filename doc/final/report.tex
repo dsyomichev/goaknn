@@ -523,14 +523,14 @@ As evidenced by Table~\ref{tab:both_optimal_sel}, the vectorization methods each
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/hyperparameters_tfidf.png}
+    \includegraphics[width=1\linewidth]{figures/hyperparameters_tfidf.png}
     \caption{Hyperparameter trend for TF-IDF vectorization with non-depicted hyperparameters fixed at $L=20$. Triangle represents the best value.}\label{fig:tfidf_hyp_trend}
 \end{figure}
 
 Trends for the $K$ and $\rho$ hyperparameters are shown by Figures~\ref{fig:tfidf_hyp_trend} and~\ref{fig:bert_hyp_trend}. The non-varied parameter is fixed at its optimal value maximizing HF\@. The increasing value of $K$ improves the TF-IDF vectorizer with diminishing returns as $K \rightarrow 200$, and differs from the behavior of the BERT vectorizer, which peaks at $K=100$. This suggests that the KNN algorithm is more sensitive using the TF-IDF vectorization, returning more valid neighbors in the tail of the result which contribute to the term scoring function described in Section~\ref{sec:methods-scoring-sequence}, while the BERT vectorization returns more unrelated noise, which interferes with the same scoring function.
 \begin{figure}
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/hyperparameters_bert.png}
+    \includegraphics[width=1\linewidth]{figures/hyperparameters_bert.png}
     \caption{Hyperparameter trend for BERT vectorization with non-depicted hyperparameters fixed at $L=20$.}\label{fig:bert_hyp_trend}
 \end{figure}
 
@@ -538,16 +538,16 @@ Amplification also behaves differently between the two, such that the TF-IDF sco
 
 \begin{table}
     \centering
-    \begin{tabular}{| m{4em} | m{3em} | m{3em} | m{3em} |}
+    \begin{tabular}{| m{10em} | m{3em} | m{3em} | m{3em} |}
         \hline
-        Method               & $k=1$  & $k=25$ & $\Delta$ \\
+        Method          & $k=1$  & $k=25$ & $\Delta$ \\
         \hline
         \hline
-        TF-IDF               & 0.4536 & 0.7304 & 0.2768   \\
+        TF-IDF          & 0.4536 & 0.7304 & 0.2768   \\
         \hline
-        BERT                 & 0.0036 & 0.0048 & 0.0012   \\
+        BERT            & 0.0036 & 0.0048 & 0.0012   \\
         \hline
-        BERT (Mean Centered) & 0.3135 & 0.4253 & 0.1118   \\
+        BERT (Centered) & 0.3135 & 0.4253 & 0.1118   \\
         \hline
     \end{tabular}
     \caption{Mean distance to $k$-th nearest neighbor for $k=1$ and $k=25$ across both vectorization methods.}\label{tab:mean_distance_at}
@@ -561,7 +561,7 @@ The values provided by Table~\ref{tab:both_optimal_sel} are only a selection ove
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/tfidf_versus_bert_mar.png}
+    \includegraphics[width=1\linewidth]{figures/tfidf_versus_bert_mar.png}
     \caption{Head to head comparison of TF-IDF vs. BERT over MAR metric.}\label{fig:method_h2h_mar}
 \end{figure}
 
@@ -569,7 +569,7 @@ As evidenced by Figure~\ref{fig:method_h2h_mar}, the TF-IDF vectorizer presents 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/tfidf_versus_bert_hf.png}
+    \includegraphics[width=1\linewidth]{figures/tfidf_versus_bert_hf.png}
     \caption{Head to head comparison of TF-IDF vs. BERT over HF metric.}\label{fig:method_h2h_hf}
 \end{figure}
 
@@ -581,7 +581,7 @@ Mirroring the experiment conducted by Gobeill et al.\ in nature but not in const
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/historical_train_test_split_size.png}
+    \includegraphics[width=1\linewidth]{figures/historical_train_test_split_size.png}
     \caption{Train/Test split sizes per-year for the temporal evaluation.}\label{fig:hist_sizes}
 \end{figure}
 
@@ -591,7 +591,7 @@ Because a document can be annotated to multiple terms over multiple years, the t
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/historical_exact.png}
+    \includegraphics[width=1\linewidth]{figures/historical_exact.png}
     \caption{Pseudo-historical comparison utilizing MRR and MAR20, testing on year $i$ and training on years $j<i$.}\label{fig:historical_exact}
 \end{figure}
 
@@ -599,7 +599,7 @@ The exact metrics generally improve as the number of available annotations grows
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.75\linewidth]{figures/historical_hierarchical.png}
+    \includegraphics[width=1\linewidth]{figures/historical_hierarchical.png}
     \caption{Pseudo-historical comparison utilizing HP and HR20, testing on year $i$ and training on years $j<i$.}\label{fig:historical_hier}
 \end{figure}
 
@@ -637,6 +637,37 @@ I would absolutely explore the options provided in Section~\ref{sec:analysis-fur
 \section{User Manual and Guide}\label{sec:manual}
 
 This section describes the procedure which should be followed in order to set up this project from scratch, as well the command line interface which can be used to interact with the functionalities this project provides. It should be noted that the project requires a large amount of data to be consumed and stored. In its fully constructed state the database is over 2 GB in size, and is stored on disk within the project's directory. Unfortunately, due to it's large size and the nature of the documents stored in the database, it cannot be redistributed and must be built from scratch. This is detailed further in Section~\ref{sec:manual-data}. The Git repository for this project, available at link in Appendix~\ref{sec:appendix-hyperlinks} (\#1), alternatively provides this information in the \verb|README.md| file.
+
+\subsection{Submission Directory Tree}\label{sec:manual-tree}
+
+\begin{Verbatim}[frame=single, fontsize=\small]
+    | - figures
+    |   | - historical_exact.png
+    |   | - historical_hierarchical.png
+    |   | - tfidf_versus_bert_mar.png
+    |   | - embedding_d1_d2.png
+    | - src
+    |   | - build
+    |   |   | - annotations.py
+    |   |   | - citations.py
+    |   |   | - relations.py
+    |   |   | - terms.py
+    |   | - db.py
+    |   | - main.py
+    | - lib
+    |   | - BertEmbeddingsVectorizer.py
+    |   | - OntologyClassifier.py
+    |   | - preprocess.py
+    | - tests
+    |   | - util
+    |   |   | - visualize.py
+    |   |   | - summarize.py
+    |   |   | - metrics.py
+    |   | - hyperparameters.py
+    |   | - historical.py
+    | - report.pdf
+    | - requirements.txt
+\end{Verbatim}
 
 \subsection{Dependency Installation}\label{sec:manual-dependency}
 
@@ -782,7 +813,7 @@ The contents of the database are partially acquired and derived from the NCBI E-
 
 \textbf{I declare that no part of this submission has been generated by Al software. These are my own words.}
 
-\appendix
+\appendix{}
 
 \section{Hyperlinks}\label{sec:appendix-hyperlinks}
 
