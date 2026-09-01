@@ -19,7 +19,7 @@
 \theoremstyle{definition}
 \newtheorem*{remark}{Remark}
 
-\title{GOA-KNN:\@ Electronic Annotation of Gene Ontology Terms}
+\title{GOA-KNN\@: Electronic Annotation of Gene Ontology Terms}
 \author{}
 
 \newcommand{\Programme}{Data Science and Analytics}
@@ -229,7 +229,7 @@ This section covers the engineering details that went into creating this project
 
 \subsection{Methodology}\label{sec:development-methodology}
 
-While no named methodology was in place during the development of this project, a number of strategies were utilized in order to ensure the project met the final deliverables outlined in the project spec. Importantly, the source code for the project was stored in a Git repository, and commits were frequently made in order to both provide a history of the development, and ensure there would be ample points to roll back to. The project was designed with modularity in mind, allowing components to be reused across different parts of the project. An attempt was made to minimize the quantity of code needing to be written, and instead utilize as many existing libraries as possible, notably Scikit-Learn (SKLearn)~\cite{pedregosa/2011/scikit-learn} and Transformers~\cite{wolf/2020/transformers}. Development was completed in stages, each of which is described in the following sections.
+While no named methodology was in place during the development of this project, a number of strategies were utilized in order to ensure the project met the final deliverables outlined in the project spec. Importantly, the source code for the project was stored in a Git repository, and commits were frequently made in order to both provide a history of the development and create points of reference to debug unexpected behaviours. A link to the repository is available in Appendix~\ref{sec:appendix-hyperlinks} (\#1).  The project was designed with modularity in mind, allowing components to be reused across different parts of the project. An attempt was made to minimize the quantity of code needing to be written, and instead utilize as many existing libraries as possible, notably Scikit-Learn (SKLearn)~\cite{pedregosa/2011/scikit-learn} and Transformers~\cite{wolf/2020/transformers}. Development was completed in stages, each of which is described in the following sections.
 
 \subsection{Requirements Analysis}\label{sec:development-analysis}
 
@@ -324,8 +324,7 @@ This project utilizes two interchangeable classes which handle the indexing of t
 
 \subsubsection{Lexical Indexing}\label{sec:methods-indexing-lexical}
 
-The tokenization process described in Section~\ref{sec:background-lexical-tokenization} is extended to account for the more complex sequences of characters found throughout the corpus. Since no cleaning of the text is done prior to the indexing step, the tokenization step instead performs this task through two functional differences from the overview described in Section~\ref{sec:background-lexical-tokenization}
-.
+The tokenization process described in Section~\ref{sec:background-lexical-tokenization} is extended to account for the more complex sequences of characters found throughout the corpus. Since no cleaning of the text is done prior to the indexing step, the tokenization step instead performs this task through two functional differences from the overview described in Section~\ref{sec:background-lexical-tokenization}.
 
 The first of these differences is the removal of apostrophes, punctuation unique in that it appears within a word and cannot be treated as a separator. This is important because the decomposition stage, which splits the document into a sequence of words, splits by whitespace and punctuation using a regular expression. If apostrophes are not removed, word such as \textit{doesn't} are decomposed to \textit{doesn} and \textit{t}.
 
@@ -520,7 +519,7 @@ As alluded to in Section~\ref{sec:methods-scoring-hyperparameters}, the truncati
     \caption{Optimal $K$ and $\rho$ when maximizing MAR and HF metrics at $L=20$.}\label{tab:both_optimal_sel}
 \end{table}
 
-As evidenced by Table~\ref{tab:both_optimal_sel}, the vectorization methods each achieve better results across differing metrics. TF-IDF vectorization scored significantly better with the MAR metric, with a difference of about 0.117, and also outperforms the BERT method by 0.029 on the MRR metric. The interpretation becomes less clear with the hierarchical metrics, as the TF-IDF method outscores the BERT method in HR by 0.07, but is outscored by 0.027 on HP and 0.024 on HF\@. It is important to note that these patterns hold for the suboptimal hyperparameter values depicted by the non-bold columns of Table~\ref{tab:both_optimal_sel}. Additionally, these results can be connected to the characteristics of the hierarchy metrics described by Verspoor et al.\ \cite{verspoor/2006/categorization}. It can be inferred that the TF-IDF based classification tends to predict descendants of the expected terms, while the BERT based classification more frequently predicts ancestors.
+As evidenced by Table~\ref{tab:both_optimal_sel}, the vectorization methods each achieve better results across differing metrics. TF-IDF vectorization scored significantly better with the MAR metric, with a difference of about 0.117, and also outperforms the BERT method by 0.029 on the MRR metric. The interpretation becomes less clear with the hierarchical metrics, as the TF-IDF method outscores the BERT method in HR by 0.07, but is outscored by 0.027 on HP and 0.024 on HF\@. It is important to note that these patterns hold for the suboptimal hyperparameter values depicted by the non-bold columns of Table~\ref{tab:both_optimal_sel}. Additionally, these results can be connected to the characteristics of the hierarchy metrics described by Verspoor et al.\ \cite{verspoor/2006/categorization}. It can be inferred that the TF-IDF based classification tends to predict descendants of the expected terms, while the BERT based classification more frequently predicts ancestors. Tables~\ref{tab:tfidf_optimal} and~\ref{tab:bert_optimal} in Appendix~\ref{sec:appendix-data} provide the optimal values of each hyperparameter, maximizing across each individual metric measured.
 
 \begin{figure}
     \centering
@@ -637,7 +636,7 @@ I would absolutely explore the options provided in Section~\ref{sec:analysis-fur
 
 \section{User Manual and Guide}\label{sec:manual}
 
-This section describes the procedure which should be followed in order to set up this project from scratch, as well the command line interface which can be used to interact with the functionalities this project provides. It should be noted that the project requires a large amount of data to be consumed and stored. In its fully constructed state the database is over 2 GB in size, and is stored on disk within the project's directory.
+This section describes the procedure which should be followed in order to set up this project from scratch, as well the command line interface which can be used to interact with the functionalities this project provides. It should be noted that the project requires a large amount of data to be consumed and stored. In its fully constructed state the database is over 2 GB in size, and is stored on disk within the project's directory. Unfortunately, due to it's large size and the nature of the documents stored in the database, it cannot be redistributed and must be built from scratch. This is detailed further in Section~\ref{sec:manual-data}. The Git repository for this project, available at link in Appendix~\ref{sec:appendix-hyperlinks} (\#1), alternatively provides this information in the \verb|README.md| file.
 
 \subsection{Dependency Installation}\label{sec:manual-dependency}
 
@@ -658,8 +657,8 @@ The required dependencies are described in the \verb|requirements.txt| file, and
 There are two files which are strict prerequisites for this project.
 
 \begin{enumerate}
-    \item \verb|go-basic.json| (\textit{71.2 MB}) - The Gene Ontology release file available at this \href{https://purl.obolibrary.org/obo/go/go-basic.json}{link}.
-    \item \verb|goa_uniprot_all.gaf.gz| (\textit{11.6 GB}) - The Gene Ontology Annotations archive available at this \href{https://ftp.ebi.ac.uk/pub/databases/GO/goa/UNIPROT/goa\_uniprot\_all.gaf.gz}{link}.
+    \item \verb|go-basic.json| (\textit{71.2 MB}) - The GO release file can be downloaded from the link in Appendix~\ref{sec:appendix-hyperlinks} (\#2).
+    \item \verb|goa_uniprot_all.gaf.gz| (\textit{11.6 GB}) - The GOA archive can be downloaded from the link in Appendix~\ref{sec:appendix-hyperlinks} (\#3).
 \end{enumerate}
 
 These must be placed in the \verb|data/source| directory, which is relative to the project root directory.
@@ -670,7 +669,7 @@ These must be placed in the \verb|data/source| directory, which is relative to t
 
 \subsubsection{NCBI E-Utilities Configuration}\label{sec:manual-dependency-ncbi}
 
-This project interacts with the NCBI E-Utilities API, which asks that users provide a project name and contact email address with each request. In order to conform to this requirement, the \verb|NCBI_PROJECT_NAME| and \verb|NCBI_PROJECT_EMAIL| environment variables should be populated with the appropriate values. Optionally, an API key can be obtained by creating an account with NCBI at this \href{https://www.ncbi.nlm.nih.gov/account/}{link} and be provided through the \verb|NCBI_API_KEY| environment variable. Providing an API key increases the rate limit for requests from three per second to ten~\cite{ncbi/2026/eutilities}, decreasing the time required to acquire the publication abstracts required by this project.
+This project interacts with the NCBI E-Utilities API, which asks that users provide a project name and contact email address with each request. In order to conform to this requirement, the \verb|NCBI_PROJECT_NAME| and \verb|NCBI_PROJECT_EMAIL| environment variables should be populated with the appropriate values. Optionally, an API key can be obtained by creating an account with NCBI and can then be declared to the program through the \verb|NCBI_API_KEY| environment variable. The link to the NCBI account dashboard is provided in Appendix~\ref{sec:appendix-hyperlinks} (\#4). Declaring an API key increases the rate limit for requests from three per second to ten~\cite{ncbi/2026/eutilities}, decreasing the time required to acquire the publication abstracts required by this project.
 
 \subsubsection{Runtime Components}\label{sec:manual-dependency-runtime}
 
@@ -681,6 +680,7 @@ Two components within the project are downloaded automatically at runtime: the N
 \begin{Verbatim}[frame=single, fontsize=\small]
     > python -m src.main [command] (options) (target)
 \end{Verbatim}
+
 A basic command line interface is included in the project in order to build the database, index the corpus, and execute prediction on input text. The three commands detailed below should be run in the order they are defined, as the database must be progressively constructed before predictions can be made. It is important to note the \verb|-m| flag used in these commands. The scripts in this project must be executed as modules in order to properly resolve dependencies.
 
 \subsubsection{Building the Database}\label{sec:manual-cli-build}
@@ -774,12 +774,68 @@ Both place results in the \verb|data/cache| directory, and the latter also print
 
 \subsection{Data Usage}\label{sec:manual-data}
 
-The contents of the database are partially acquired and derived from the NCBI E-Utilities service and as such, the disclaimer and copyright notice available at this \href{https://www.ncbi.nlm.nih.gov/About/disclaimer.html}{link} applies. The US National Library of Medicine does not claim copyright over the abstracts available from PubMed, but journal publishers or authors can. Gene Ontology data from the 2026-06-15 release is made available under the terms of the CC BY 4.0 license. Gene Ontology Annotations UniProt archive from the 2026-06-17 release is made available under the terms of the CC BY 4.0 license. This project makes no attempt to distribute this data, and does not recommend users of this project to do so.
+The contents of the database are partially acquired and derived from the NCBI E-Utilities service and as such, the disclaimer and copyright notice available in Appendix~\ref{sec:appendix-hyperlinks} (\#5) applies. The US National Library of Medicine does not claim copyright over the abstracts available from PubMed, but journal publishers or authors can. Gene Ontology data from the 2026-06-15 release is made available under the terms of the CC BY 4.0 license. Gene Ontology Annotations UniProt archive from the 2026-06-17 release is made available under the terms of the CC BY 4.0 license. This project makes no attempt to distribute this data, and does not recommend users of this project to do so.
 
 \bibliographystyle{plain}
 
 \bibliography{bibliography}
 
 \textbf{I declare that no part of this submission has been generated by Al software. These are my own words.}
+
+\appendix
+
+\section{Hyperlinks}\label{sec:appendix-hyperlinks}
+
+\begin{enumerate}
+    \item Project Git Repository: \url{https://tinyurl.com/bde78ufk}
+    \item GO Basic Release JSON\@: \url{https://purl.obolibrary.org/obo/go/go-basic.json}
+    \item GOA UniProt GAF Archive: \url{https://ftp.ebi.ac.uk/pub/databases/GO/goa/UNIPROT/goa_uniprot_all.gaf.gz}
+    \item NCBI Account Dashboard: \url{https://www.ncbi.nlm.nih.gov/account}
+    \item NCBI Disclaimer: \url{https://www.ncbi.nlm.nih.gov/About/disclaimer.html}
+\end{enumerate}
+
+\section{More Data}\label{sec:appendix-data}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{| m{2em} | m{2em} | m{4em} | m{4em} | m{4em} | m{4em} | m{4em} |}
+        \hline
+        $k$ & $\rho$ & MRR             & MAR             & HP              & HR              & HF              \\
+        \hline
+        \hline
+        200 & 3      & \textbf{0.4509} & 0.3845          & 0.2874          & 0.8326          & 0.4006          \\
+        \hline
+        100 & 3      & 0.4484          & \textbf{0.3861} & 0.2841          & 0.8285          & 0.3967          \\
+        \hline
+        200 & 1      & 0.4418          & 0.3569          & \textbf{0.2991} & 0.8398          & 0.4132          \\
+        \hline
+        200 & 1      & 0.4418          & 0.3569          & 0.2991          & \textbf{0.8398} & \textbf{0.4132} \\
+        \hline
+        200 & 1      & 0.4418          & 0.3569          & 0.2991          & \textbf{0.8398} & \textbf{0.4132} \\
+        \hline
+    \end{tabular}
+    \caption{Optimal hyperparameter values maximizing each metric for the TF-IDF vectorization method with fixed $L=20$.}\label{tab:tfidf_optimal}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{| m{2em} | m{2em} | m{4em} | m{4em} | m{4em} | m{4em} | m{4em} |}
+        \hline
+        $k$ & $\rho$ & MRR             & MAR             & HP              & HR              & HF              \\
+        \hline
+        \hline
+        50  & 5      & \textbf{0.4235} & 0.2677          & 0.3200          & 0.8132          & 0.4315          \\
+        \hline
+        25  & 5      & 0.4190          & \textbf{0.2688} & 0.3109          & 0.8059          & 0.4219          \\
+        \hline
+        200 & 5      & 0.4044          & 0.2351          & \textbf{0.3270} & 0.8071          & 0.4364          \\
+        \hline
+        100 & 5      & 0.4173          & 0.2565          & 0.3258          & \textbf{0.8133} & \textbf{0.4367} \\
+        \hline
+        100 & 5      & 0.4173          & 0.2565          & 0.3258          & \textbf{0.8133} & \textbf{0.4367} \\
+        \hline
+    \end{tabular}
+    \caption{Optimal hyperparameter values maximizing each metric for the BERT vectorization method with fixed $L=20$.}\label{tab:bert_optimal}
+\end{table}
 
 \end{document}
