@@ -20,7 +20,7 @@
 \newtheorem*{remark}{Remark}
 
 \title{GOA-KNN\@: Electronic Annotation of Gene Ontology Terms}
-\author{}
+\author{Anonymous}
 
 \newcommand{\Programme}{Data Science and Analytics}
 
@@ -395,7 +395,7 @@ To give a practical example, suppose $K=2$ such that $(\hat{s}_1, \hat{s}_2) = (
 
 \subsubsection{Truncation}\label{sec:methods-scoring-truncation}
 
-Larger values of $K$ introduce more terms into $Y_K$ and thus transitively increases the length of $\hat{T}$. While this increase is entirely dependent on the terms annotated to the neighbor documents, for large values of $K$ the tail of $\hat{T}$ is often full of low scoring, poor matching terms. Let $L \leq q$ such that the truncated prediction sequence $\hat{T}_L = (t_1, \dots, t_L)$. This truncated sequence is representative of the final prediction sequence emitted by the classifier.
+Larger values of $K$ introduce more terms into $Y_K$ and thus transitively increases the length of $\hat{T}$. While this increase is entirely dependent on the terms annotated to the neighbor documents, for large values of $K$ the tail of $\hat{T}$ is often full of low scoring, poor matching terms. Let $L \leq q$ such that the truncated prediction sequence $\hat{T}_L = (t_1, \dots, t_L)$. This truncated sequence is representative of the final prediction sequence emitted by the classifier. Gobeill et al.\ used a similar mechanics, albeit implemented differently, to evaluate the classifier for different use cases. They state that for `a semi-automatic process, where a user has to screen the output list' that `screening 20 terms is a realistic scenario'~\cite{gobeill/2013/managing}.
 
 \subsubsection{Hyperparameters}\label{sec:methods-scoring-hyperparameters}
 
@@ -446,7 +446,7 @@ The macro-average recall (MAR), defined in equation~\ref{eq:mar}~\cite{sokolova/
 
 Importantly, each term contributes equally to the average, so terms which are disproportionally represented within the test set are not given precedence.
 
-\subsubsection{Hierarchical}\label{sec:methods-metrics-hierarchical}
+\subsubsection{Hierarchical Relationships}\label{sec:methods-metrics-hierarchical}
 
 The deficit of the metrics defined in Section~\ref{sec:methods-metrics-exact} is the lack of consideration for the relationship between terms. A term which sits one level above the expected term scores just as badly as a term which appears in a separate aspect altogether, which invalidates the ontology's structure entirely. Verspoor et al.\ demonstrated that the standard multi-label evaluation metrics of precision, recall and F-score report poor performance due to this lack of consideration~\cite{verspoor/2006/categorization}, and propose extensions to these metrics which take the strength of the relationship between terms into account. Here ${\uparrow} t$ and ${\uparrow} \hat{t}$ represent the lineage expansions of a true and predicted term respectively. In plain words, these are the sets containing a term and all of its ancestors.
 
@@ -498,7 +498,7 @@ Analysis was conducted across three different categories, attempting to depict n
 
 As previously mentioned in Section~\ref{sec:methods-scoring-hyperparameters} there are a total of two hyperparameters which hold sway over the classifier: the number of neighbors $K$ and the amplification exponent $\rho$. Because the optimal value of these parameters is a function of the dataset as opposed to the implementation, an exhaustive search must be performed across a selection of potential values. This task is achieved using the SKLearn \verb|GridSearchCV| class~\cite{sklearn/2026/gridsearchcv}, which performs a cross-validation across the train and test sets for each of the potential parameter combinations, and can be provided with a custom scoring function.
 
-As alluded to in Section~\ref{sec:methods-scoring-hyperparameters}, the truncation limit $L$ is also considered a hyperparameter within the exhaustive search, but its purpose exists in only to determine the best combinations of $K$ and $\rho$ for each potential value of $L$, in accordance to the use case argument made by Gobeill et al.~\cite{gobeill/2013/managing}. The search is performed over the values of $K \in \{ 25, 50, 100, 200 \}$, $\rho=\{1,3,5\}$ and $L=\{5,10,20\}$ across all 36 combinations. Each combination is evaluated over 10 randomly shuffled folds of the full 202,638 document corpus using a fixed seed to ensure identical shuffling across vectorization methods. Each of the metrics defined in Section~\ref{sec:methods-metrics} by Equations~\ref{eq:mrr} (MRR),~\ref{eq:mar} (MAR),~\ref{eq:hp} (HP),~\ref{eq:hr} (HR) and~\ref{eq:hf} (HF) are evaluated for both vectorization methods, the results of which are summarized in Table~\ref{tab:both_optimal_sel} at a fixed truncation length of $L=20$.
+As alluded to in Section~\ref{sec:methods-scoring-hyperparameters}, the truncation limit $L$ is also considered a hyperparameter within the exhaustive search, but its purpose exists in only to determine the best combinations of $K$ and $\rho$ for each potential value of $L$. The search is performed over the values of $K \in \{ 25, 50, 100, 200 \}$, $\rho=\{1,3,5\}$ and $L=\{5,10,20\}$ across all 36 combinations. Each combination is evaluated over 10 randomly shuffled folds of the full 202,638 document corpus using a fixed seed to ensure identical shuffling across vectorization methods. Each of the metrics defined in Section~\ref{sec:methods-metrics} by Equations~\ref{eq:mrr} (MRR),~\ref{eq:mar} (MAR),~\ref{eq:hp} (HP),~\ref{eq:hr} (HR) and~\ref{eq:hf} (HF) are evaluated for both vectorization methods, the results of which are summarized in Table~\ref{tab:both_optimal_sel} at a fixed truncation length of $L=20$.
 \begin{table}
     \centering
     \begin{tabular}{| m{4em} | m{2em} | m{2em} | m{3em} | m{3em} | m{3em} | m{3em} | m{3em} |}
@@ -825,7 +825,7 @@ The contents of the database are partially acquired and derived from the NCBI E-
     \item NCBI Disclaimer: \url{https://www.ncbi.nlm.nih.gov/About/disclaimer.html}
 \end{enumerate}
 
-\section{More Data}\label{sec:appendix-data}
+\section{Additional Results}\label{sec:appendix-data}
 
 \begin{table}[H]
     \centering

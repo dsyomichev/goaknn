@@ -66,9 +66,9 @@
   Where other published and unpublished source materials have been used,
   these have been acknowledged.
   \begin{description}
-  \item[Word Count:]
+  \item[Word Count: 11404]
   \item[Student Name: Anonymous]
-  \item[Date of Submission:]
+  \item[Date of Submission: 01-09-2026]
   \end{description}
 }
 
